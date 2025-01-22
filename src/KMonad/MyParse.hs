@@ -18,9 +18,9 @@ parseQuotedString = do
 
 cmds :: Parser ServerCmds
 cmds = ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
-   <|> ("LayerOp (PushLayer " *> ((ServerLayerOp . PushLayer) <$> parseQuotedString))
-   <|> ("LayerOp (PopLayer " *> ((ServerLayerOp . PopLayer) <$> parseQuotedString))
-   <|> ("LayerOp (SetBaseLayer " *> ((ServerLayerOp . SetBaseLayer) <$> parseQuotedString))
+   <|> ("LayerOp PushLayer " *> ((ServerLayerOp . PushLayer) <$> parseQuotedString))
+   <|> ("LayerOp PopLayer " *> ((ServerLayerOp . PopLayer) <$> parseQuotedString))
+   <|> ("LayerOp SetBaseLayer " *> ((ServerLayerOp . SetBaseLayer) <$> parseQuotedString))
 
 parseServerCmd t = case runParser cmds "" t  of
   Left  e -> error (show e)
