@@ -146,8 +146,14 @@ serverMVar = unsafePerformIO $ KPrelude.newEmptyMVar
 
 launchServer :: MVar ServerCmds -> IO ()
 launchServer mvar = do
-  -- We can't print in the server thread
-  (e :: Either IOError ()) <- KPrelude.try (server mvar)
+  -- Currently, errors still go through. Wait in case the port isn't bound
+  KPrelude.threadDelay 2000000
+  () <- KPrelude.catch
+              (server mvar)
+              (\e -> do let err = show (e :: KPrelude.IOException)
+                        -- We can't print in the server thread
+                        Tr.trace ("Error: " ++ err) (pure ())
+                        return ())
   -- Wait until port is avaliable again
   KPrelude.threadDelay 2000000
   launchServer mvar
