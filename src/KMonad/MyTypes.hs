@@ -12,6 +12,7 @@ data ServerCmds =
   | ServerLayerOp LayerOp
   | ServerInject KeyEvent
   | ServerShellCmd Text
+  | ServerNull
   deriving (Show) 
 
 instance Show LayerOp where
