@@ -103,7 +103,7 @@ initAppEnv cfg = do
     emitKey snk e
 
   launch_ "emitter_proc_rpc" $ do
-    liftIO $ 
+    liftIO $ server serverMVar
 
   -- emit e = view keySink >>= flip emitKey e
   pure $ AppEnv
