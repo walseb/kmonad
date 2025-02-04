@@ -101,6 +101,7 @@ executeServerCmd (ServerHold a) = hold a
 executeServerCmd (ServerLayerOp a) = layerOp a
 executeServerCmd (ServerInject a) = inject a
 executeServerCmd (ServerShellCmd a) = shellCmd a
+executeServerCmd ServerNull = pure ()
 
 {-# INLINE demuxKvToMap #-}
 demuxKvToMap :: (Monad m, Ord k) => (k -> m (Fold m a b)) -> Fold m (k, a) (Map k b)

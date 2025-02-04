@@ -12,7 +12,7 @@ import qualified KMonad.Prelude.Imports as KPrelude
 
 parseQuotedString :: Parser Text
 parseQuotedString = do
-  char '"'
+  _ <- char '"'
   str <- manyTill L.charLiteral (char '"')
   return (pack str)
 
@@ -23,5 +23,5 @@ cmds = ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
    <|> ("LayerOp SetBaseLayer " *> ((ServerLayerOp . SetBaseLayer) <$> parseQuotedString))
 
 parseServerCmd t = case runParser cmds "" t  of
-  Left  e -> error (show e)
-  Right x -> Tr.trace (KPrelude.pack ("Parsed command: " ++ (show x))) x
+  Left  e -> Tr.trace (KPrelude.pack ("Parsinq error: " ++ (show e))) ServerNull
+  Right x -> Tr.trace (KPrelude.pack ("Parsed: " ++ (show x))) x
