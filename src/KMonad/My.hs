@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
-module KMonad.My (server, serverMVar, executeServerCmd) where
+module KMonad.My (server, serverMVar, executeServerCmd, launchServer) where
 
 import Control.Monad (void, when)
 import Control.Monad.Catch (catch, SomeException)
