@@ -142,3 +142,12 @@ server uMvar =
 serverMVar :: MVar ServerCmds
 serverMVar = unsafePerformIO $ KPrelude.newEmptyMVar
 {-# NOINLINE serverMVar #-}
+
+
+launchServer :: MVar ServerCmds -> IO ()
+launchServer mvar = do
+  -- We can't print in the server thread
+  (e :: Either IOError ()) <- KPrelude.try (server mvar)
+  -- Wait until port is avaliable again
+  KPrelude.threadDelay 2000000
+  launchServer mvar
