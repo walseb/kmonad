@@ -151,7 +151,7 @@ launchServer mvar = do
               (\e -> do let err = show (e :: KPrelude.IOException)
                         -- Only keep the thread alive if the error is that the port is taken
                         if (err == "Network.Socket.bind: resource busy (Address already in use)")
-                        then Tr.trace ("Error: " ++ err) (pure ())
+                        then Tr.trace ("Port occupied error: " ++ err) (pure ())
                         else error err)
   -- Wait until port is avaliable again
   KPrelude.threadDelay 2000000
