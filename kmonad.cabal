@@ -35,7 +35,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-    -- -fwrite-ide-info -hiedir .hiefiles -fdefer-type-errors -Werror=deferred-type-errors -Werror=deferred-out-of-scope-variables -fno-defer-typed-holes -hidir .hifiles -plugin-package hiedb-plugin -fplugin Plugin.HieDb
+    -fwrite-ide-info -hiedir .hiefiles -fdefer-type-errors -Werror=deferred-type-errors -Werror=deferred-out-of-scope-variables -fno-defer-typed-holes -hidir .hifiles -plugin-package hiedb-plugin -fplugin Plugin.HieDb
     -Wall
     -Wno-name-shadowing
     -Wno-unused-imports
@@ -88,6 +88,7 @@ library
       KMonad.My
       KMonad.MyParse
       KMonad.MyTypes
+      KMonad.MyMain
       KMonad.App
       KMonad.App.Main
       KMonad.App.Types
