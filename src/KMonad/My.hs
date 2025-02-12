@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
-module KMonad.My (server, serverMVar, executeServerCmd, launchServer) where
+module KMonad.My (server, serverMVar, launchServer) where
 
 import Control.Monad (void, when)
 import Control.Monad.Catch (catch, SomeException)
@@ -95,13 +95,13 @@ commands uMvar cmd = do
       tryTakeMVar uMvar
       putMVar uMvar (parseServerCmd (KPrelude.pack msg))
 
-executeServerCmd (ServerEmit a) = emit a
-executeServerCmd (ServerPause a) = pause a
-executeServerCmd (ServerHold a) = hold a
-executeServerCmd (ServerLayerOp a) = layerOp a
-executeServerCmd (ServerInject a) = inject a
-executeServerCmd (ServerShellCmd a) = shellCmd a
-executeServerCmd ServerNull = pure ()
+-- executeServerCmd (ServerLayer a) = layerOp a
+-- executeServerCmd (ServerEmit a) = emit a
+-- executeServerCmd (ServerPause a) = pause a
+-- executeServerCmd (ServerHold a) = hold a
+-- executeServerCmd (ServerInject a) = inject a
+-- executeServerCmd (ServerShellCmd a) = shellCmd a
+-- executeServerCmd ServerNull = pure ()
 
 {-# INLINE demuxKvToMap #-}
 demuxKvToMap :: (Monad m, Ord k) => (k -> m (Fold m a b)) -> Fold m (k, a) (Map k b)
