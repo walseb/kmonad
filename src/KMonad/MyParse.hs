@@ -17,10 +17,9 @@ parseQuotedString = do
   return (pack str)
 
 cmds :: Parser ServerCmds
-cmds = ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
-   <|> ("LayerOp PushLayer " *> ((ServerLayerOp . PushLayer) <$> parseQuotedString))
-   <|> ("LayerOp PopLayer " *> ((ServerLayerOp . PopLayer) <$> parseQuotedString))
-   <|> ("LayerOp SetBaseLayer " *> ((ServerLayerOp . SetBaseLayer) <$> parseQuotedString))
+cmds = -- ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
+   -- <|>
+   ("SetLayer " *> (ServerLayer <$> parseQuotedString))
 
 parseServerCmd t = case runParser cmds "" t  of
   Left  e -> Tr.trace (KPrelude.pack ("Parsinq error: " ++ (show e))) ServerNull

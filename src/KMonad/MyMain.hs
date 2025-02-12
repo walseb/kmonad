@@ -22,6 +22,8 @@ import KMonad.Util
 import KMonad.Model
 
 
+import KMonad.Keyboard.Keycode
+import KMonad.Keyboard.Types
 import KMonad.Keyboard.IO
 import qualified KMonad.Model.Dispatch as Dp
 import qualified KMonad.Model.Hooks    as Hs
@@ -32,6 +34,7 @@ import KMonad.My
 -- import qualified KMonad.Prelude.Imports as KPrelude
 import qualified System.IO.Unsafe
 
+import KMonad.MyTypes
 import Data.List
 
 
@@ -39,6 +42,7 @@ import Data.List
 
 #ifdef linux_HOST_OS
 import System.Posix.Signals (Handler(Ignore), installHandler, sigCHLD)
+
 #endif
 
 
@@ -88,7 +92,7 @@ loop = forever $ do
   src <- view keySource
   ev <- pull' src
   snk <- (view keySink)
-  emitKey snk  ev
+  emitKey snk ev
 
 -- newtype Key = Key (Maybe KeyEvent)
 
@@ -100,35 +104,30 @@ loop = forever $ do
 --   (<>) (Key a) (Key b) = Key $ combineKeyEvent <$> a <*> b
 
 -- Here we know that the event has occurred
-comb :: [KeyEvent] -> KeyEvent -> KeyEvent -> [KeyEvent]
-comb list new old = undefined
+updateState :: [Keycode] -> KeyEvent -> [Keycode]
+updateState list (KeyEvent Release k) = filter ((/=) k) list
+updateState list (KeyEvent Press k) = k : list
 
-updateState :: [KeyEvent] -> KeyEvent -> [KeyEvent]
-updateState evs k =
-  let match = find ((==) k) evs in
-  maybe evs (comb evs k) match
-
-keyMap :: MVar [KeyEvent]
+keyMap :: MVar [Keycode]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newEmptyMVar
 {-# NOINLINE keyMap #-}
 
+-- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO KeyEvent
-fn = undefined
+fn ke@(KeyEvent p k) = do
+  cmd <- runServerPull
+  m <- takeMVar keyMap
+  let m' = updateState m ke
+  _ <- putMVar keyMap m'
+  pure $ ke
 
-runServerPull :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => RIO e ()
+runServerPull :: IO (Maybe ServerCmds)
 runServerPull = do
-  mvar <- tryTakeMVar serverMVar
-  case mvar of
-    Just a -> do
-      logInfo $ "Executing remote command!"
-      executeServerCmd a
-    Nothing -> pure ()
+  tryTakeMVar serverMVar
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e KeyEvent
 pull' s = awaitKey s >>=
-  -- Running the command from the server should always run right before the key is run
-  (\a -> runServerPull >> (pure a))
-  >>= liftIO . fn
+  liftIO . fn
 
 -- | The first command in KMonad
 --
