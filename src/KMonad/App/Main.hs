@@ -179,16 +179,4 @@ startApp c = do
   runContT (initAppEnv c) (`runRIO` loop)
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => Sl.Sluice -> RIO e KeyEvent
-pull' s = Sl.step s >>=
-  -- Running the command from the server should always run right before the key is run
-  (\a -> runServerPull >> (pure a))
-  >>= maybe (Sl.pull s) pure
-
-runServerPull :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => RIO e ()
-runServerPull = do
-  mvar <- tryTakeMVar serverMVar
-  case mvar of
-    Just a -> do
-      logInfo $ "Executing remote command!"
-      executeServerCmd a
-    Nothing -> pure ()
+pull' s = Sl.step s >>= maybe (Sl.pull s) pure
