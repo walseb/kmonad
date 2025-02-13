@@ -25,11 +25,12 @@ import KMonad.Util
 import KMonad.Model
 
 
-
 import qualified KMonad.Model.Dispatch as Dp
 import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
+
+import KMonad.My
 
 -- FIXME: This should live somewhere else
 
@@ -102,6 +103,10 @@ initAppEnv cfg = do
     emitKey snk e
     -- If delay is specified, wait for it
     for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
+
+  launch_ "emitter_proc_rpc" $ do
+    liftIO $ server serverMVar
+
   -- emit e = view keySink >>= flip emitKey e
   pure $ AppEnv
     { _keAppCfg  = cfg
@@ -164,7 +169,7 @@ pressKey c =
 -- 1. Pull from the pull-chain until an unhandled event reaches us.
 -- 2. If that event is a 'Press' we use our keymap to trigger an action.
 loop :: RIO AppEnv ()
-loop = forever $ view sluice >>= Sl.pull >>= \case
+loop = forever $ view sluice >>= pull' >>= \case
   e | e^.switch == Press -> pressKey $ e^.keycode
   _                      -> pure ()
 
@@ -176,3 +181,18 @@ startApp c = do
   liftIO . void $ installHandler sigCHLD Ignore Nothing
 #endif
   runContT (initAppEnv c) (`runRIO` loop)
+
+pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => Sl.Sluice -> RIO e KeyEvent
+pull' s = Sl.step s >>=
+  -- Running the command from the server should always run right before the key is run
+  (\a -> runServerPull >> (pure a))
+  >>= maybe (Sl.pull s) pure
+
+runServerPull :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => RIO e ()
+runServerPull = do
+  mvar <- tryTakeMVar serverMVar
+  case mvar of
+    Just a -> do
+      logInfo $ "Executing remote command!"
+      executeServerCmd a
+    Nothing -> pure ()
