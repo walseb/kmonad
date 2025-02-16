@@ -92,7 +92,7 @@ loop = forever $ do
   src <- view keySource
   ev <- pull' src
   snk <- (view keySink)
-  emitKey snk ev
+  sequence $ (emitKey snk) <$> ev
 
 -- newtype Key = Key (Maybe KeyEvent)
 
@@ -113,19 +113,132 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newEmptyMVar
 {-# NOINLINE keyMap #-}
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
-fn :: KeyEvent -> IO KeyEvent
+fn :: KeyEvent -> IO [KeyEvent]
 fn ke@(KeyEvent p k) = do
   cmd <- runServerPull
   m <- takeMVar keyMap
   let m' = updateState m ke
   _ <- putMVar keyMap m'
-  pure $ ke
+  pure $ (translationLayer m' k) 
+
+mapKey f (KeyEvent p k) = (KeyEvent p (f k))
+
+globalModifiersLayer :: Keycode -> Keycode
+globalModifiersLayer KeyCapsLock = KeyLeftCtrl
+
+
+-- Turn off and turn back on
+aroundNeg context modK a =
+  if isJust $ find ((==) modK) context 
+  then addAround modK a 
+  else a
+    where 
+      addAround modK a =
+        [(KeyEvent Release modK)]
+        ++ a 
+        ++ [(KeyEvent Press modK)]
+
+-- Turn off and turn back on
+aroundPos context modK a =
+  if isJust $ find ((==) modK) context 
+  then a
+  else addAround modK a
+    where 
+      addAround modK a =
+        [(KeyEvent Press modK)]
+        ++ a 
+        ++ [(KeyEvent Release modK)]
+
+tap k = [(KeyEvent Press k), (KeyEvent Release k)]
+
+translationLayer :: [Keycode] -> Keycode -> [KeyEvent]
+translationLayer c b | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b
+
+-- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
+-- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
+-- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
+altTranslationLayer c KeyQ = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key1))
+altTranslationLayer c KeyW = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key2))
+altTranslationLayer c KeyE = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key3))
+altTranslationLayer c KeyR = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key4))
+altTranslationLayer c KeyT = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key5))
+altTranslationLayer c KeyY = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key6))
+altTranslationLayer c KeyU = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key7))
+altTranslationLayer c KeyI = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key8))
+altTranslationLayer c KeyO = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key9))
+altTranslationLayer c KeyP = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key0))
+altTranslationLayer c KeyLeftBrace = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap KeyMinus))
+altTranslationLayer c KeyRightBrace = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap KeyEqual))
+
+altTranslationLayer c KeyA = aroundNeg c KeyLeftAlt (tap Key1)
+altTranslationLayer c KeyS = aroundNeg c KeyLeftAlt (tap Key2)
+altTranslationLayer c KeyD = aroundNeg c KeyLeftAlt (tap Key3)
+altTranslationLayer c KeyF = aroundNeg c KeyLeftAlt (tap Key4)
+altTranslationLayer c KeyG = aroundNeg c KeyLeftAlt (tap Key5)
+altTranslationLayer c KeyH = aroundNeg c KeyLeftAlt (tap Key6)
+altTranslationLayer c KeyJ = aroundNeg c KeyLeftAlt (tap Key7)
+altTranslationLayer c KeyK = aroundNeg c KeyLeftAlt (tap Key8)
+altTranslationLayer c KeyL = aroundNeg c KeyLeftAlt (tap Key9)
+altTranslationLayer c KeySemicolon = aroundNeg c KeyLeftAlt (tap Key0)
+altTranslationLayer c KeyApostrophe = aroundNeg c KeyLeftAlt (tap KeyMinus)
+altTranslationLayer c KeyEnter = aroundNeg c KeyLeftAlt (tap KeyEqual)
+
+altTranslationLayer c KeyM = aroundNeg c KeyLeftAlt (tap KeyEqual)
+altTranslationLayer c KeyComma = aroundNeg c KeyLeftAlt (tap KeyEqual)
+altTranslationLayer c KeyDot = aroundNeg c KeyLeftAlt (tap KeyEqual)
+
+carpalxTranslationLayer :: Keycode -> Keycode
+
+-- QWERTY -> Carpalx
+-- Top row
+-- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+-- ->
+-- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
+carpalxTranslationLayer KeyQ = KeyQ
+carpalxTranslationLayer KeyW = KeyG
+carpalxTranslationLayer KeyE = KeyM
+carpalxTranslationLayer KeyT = KeyL
+carpalxTranslationLayer KeyY = KeyY
+carpalxTranslationLayer KeyU = KeyF
+carpalxTranslationLayer KeyI = KeyU
+carpalxTranslationLayer KeyO = KeyB
+carpalxTranslationLayer KeyP = KeySemicolon
+carpalxTranslationLayer KeyLeftBrace = KeyLeftBrace
+carpalxTranslationLayer KeyRightBrace = KeyRightBrace
+carpalxTranslationLayer KeyBackslash = KeyBackslash
+
+-- caps a    s    d    f    g    h    j    k    l    ;    '    ret
+-- ->
+-- caps d    s    t    n    r    i    a    e    o    h    '    ret
+carpalxTranslationLayer KeyA = KeyD
+carpalxTranslationLayer KeyS = KeyS
+carpalxTranslationLayer KeyD = KeyT
+carpalxTranslationLayer KeyF = KeyN
+carpalxTranslationLayer KeyG = KeyR
+carpalxTranslationLayer KeyH = KeyI
+carpalxTranslationLayer KeyJ = KeyA
+carpalxTranslationLayer KeyK = KeyE
+carpalxTranslationLayer KeyL = KeyO
+carpalxTranslationLayer KeySemicolon = KeyH
+carpalxTranslationLayer KeyApostrophe = KeyApostrophe
+
+-- lsft z    x    c    v    b    n    m    ,    .    /    rsft
+-- ->
+-- lsft z    x    c    v    j    k    p    ,    .    /    rsft
+carpalxTranslationLayer KeyZ = KeyZ
+carpalxTranslationLayer KeyX = KeyX
+carpalxTranslationLayer KeyC = KeyC
+carpalxTranslationLayer KeyV = KeyV
+carpalxTranslationLayer KeyB = KeyJ
+carpalxTranslationLayer KeyN = KeyK
+carpalxTranslationLayer KeyM = KeyP
+
 
 runServerPull :: IO (Maybe ServerCmds)
 runServerPull = do
   tryTakeMVar serverMVar
 
-pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e KeyEvent
+pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e [KeyEvent]
 pull' s = awaitKey s >>=
   liftIO . fn
 
