@@ -110,9 +110,7 @@ fn ke@(KeyEvent p k) = do
   m <- takeMVar keyMap
   let m' = updateState m ke
   _ <- putMVar keyMap m'
-  if p == Press
-  then pure $ (translationLayer m' k)
-  else pure []
+  pure $ translationLayer m' k p
 
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
@@ -142,58 +140,58 @@ aroundPos context modK a =
         ++ a
         ++ [(KeyEvent Release modK)]
 
-tap k = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent Press k), (KeyEvent Release k)]
+press k p = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent p k)]
 
-translationLayer :: [Keycode] -> Keycode -> [KeyEvent]
-translationLayer c b | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b
-translationLayer c b | isJust (find ((==) KeyLeftCtrl) c) = ctrlTranslationLayer c b
-translationLayer c b = tap (carpalxTranslationLayer b)
+translationLayer :: [Keycode] -> Keycode -> Switch -> [KeyEvent]
+translationLayer c b p | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b p
+translationLayer c b p | isJust (find ((==) KeyLeftCtrl) c) = ctrlTranslationLayer c b p
+translationLayer c b p = press (carpalxTranslationLayer b) p
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
-altTranslationLayer c KeyQ = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key1))
-altTranslationLayer c KeyW = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key2))
-altTranslationLayer c KeyE = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key3))
-altTranslationLayer c KeyR = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key4))
-altTranslationLayer c KeyT = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key5))
-altTranslationLayer c KeyY = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key6))
-altTranslationLayer c KeyU = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key7))
-altTranslationLayer c KeyI = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key8))
-altTranslationLayer c KeyO = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key9))
-altTranslationLayer c KeyP = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap Key0))
-altTranslationLayer c KeyLeftBrace = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap KeyMinus))
-altTranslationLayer c KeyRightBrace = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (tap KeyEqual))
 
-altTranslationLayer c KeyA = aroundNeg c KeyLeftAlt (tap Key1)
-altTranslationLayer c KeyS = aroundNeg c KeyLeftAlt (tap Key2)
-altTranslationLayer c KeyD = aroundNeg c KeyLeftAlt (tap Key3)
-altTranslationLayer c KeyF = aroundNeg c KeyLeftAlt (tap Key4)
-altTranslationLayer c KeyG = aroundNeg c KeyLeftAlt (tap Key5)
-altTranslationLayer c KeyH = aroundNeg c KeyLeftAlt (tap Key6)
-altTranslationLayer c KeyJ = aroundNeg c KeyLeftAlt (tap Key7)
-altTranslationLayer c KeyK = aroundNeg c KeyLeftAlt (tap Key8)
-altTranslationLayer c KeyL = aroundNeg c KeyLeftAlt (tap Key9)
-altTranslationLayer c KeySemicolon = aroundNeg c KeyLeftAlt (tap Key0)
-altTranslationLayer c KeyApostrophe = aroundNeg c KeyLeftAlt (tap KeyMinus)
-altTranslationLayer c KeyEnter = aroundNeg c KeyLeftAlt (tap KeyEqual)
+altTranslationLayer c KeyQ p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key1 p))
+altTranslationLayer c KeyW p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key2 p))
+altTranslationLayer c KeyE p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key3 p))
+altTranslationLayer c KeyR p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key4 p))
+altTranslationLayer c KeyT p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key5 p))
+altTranslationLayer c KeyY p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key6 p))
+altTranslationLayer c KeyU p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key7 p))
+altTranslationLayer c KeyI p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key8 p))
+altTranslationLayer c KeyO p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key9 p))
+altTranslationLayer c KeyP p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key0 p))
+altTranslationLayer c KeyLeftBrace p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press KeyMinus p))
+altTranslationLayer c KeyRightBrace p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press KeyEqual p))
 
-altTranslationLayer c KeyM = aroundNeg c KeyLeftAlt (tap KeyEqual)
-altTranslationLayer c KeyComma = aroundNeg c KeyLeftAlt (tap KeyEqual)
-altTranslationLayer c KeyDot = aroundNeg c KeyLeftAlt (tap KeyEqual)
+altTranslationLayer c KeyA p = aroundNeg c KeyLeftAlt (press Key1 p)
+altTranslationLayer c KeyS p = aroundNeg c KeyLeftAlt (press Key2 p)
+altTranslationLayer c KeyD p = aroundNeg c KeyLeftAlt (press Key3 p)
+altTranslationLayer c KeyF p = aroundNeg c KeyLeftAlt (press Key4 p)
+altTranslationLayer c KeyG p = aroundNeg c KeyLeftAlt (press Key5 p)
+altTranslationLayer c KeyH p = aroundNeg c KeyLeftAlt (press Key6 p)
+altTranslationLayer c KeyJ p = aroundNeg c KeyLeftAlt (press Key7 p)
+altTranslationLayer c KeyK p = aroundNeg c KeyLeftAlt (press Key8 p)
+altTranslationLayer c KeyL p = aroundNeg c KeyLeftAlt (press Key9 p)
+altTranslationLayer c KeySemicolon p = aroundNeg c KeyLeftAlt (press Key0 p)
+altTranslationLayer c KeyApostrophe p = aroundNeg c KeyLeftAlt (press KeyMinus p)
+altTranslationLayer c KeyEnter p = aroundNeg c KeyLeftAlt (press KeyEqual p)
+
+altTranslationLayer c KeyM p = aroundNeg c KeyLeftAlt (press KeyEqual p)
+altTranslationLayer c KeyComma p = aroundNeg c KeyLeftAlt (press KeyEqual p)
+altTranslationLayer c KeyDot p = aroundNeg c KeyLeftAlt (press KeyEqual p)
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
 --  _      _      _      _      _      _      _      @ret   _      _      _      _      _
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
-ctrlTranslationLayer c KeyEsc = aroundNeg c KeyLeftCtrl (tap KeyCapsLock)
-ctrlTranslationLayer c KeyL = aroundNeg c KeyLeftCtrl (tap KeyDelete)
-ctrlTranslationLayer c KeyF = aroundNeg c KeyLeftCtrl (tap KeyBackspace)
-ctrlTranslationLayer c KeyA = aroundNeg c KeyLeftCtrl (tap KeyEnter)
+ctrlTranslationLayer c KeyEsc p = aroundNeg c KeyLeftCtrl (press KeyCapsLock p)
+ctrlTranslationLayer c KeyL p = aroundNeg c KeyLeftCtrl (press KeyDelete p)
+ctrlTranslationLayer c KeyF p = aroundNeg c KeyLeftCtrl (press KeyBackspace p)
+ctrlTranslationLayer c KeyA p = aroundNeg c KeyLeftCtrl (press KeyEnter p)
 
 
-carpalxTranslationLayer :: Keycode -> Keycode
 
 -- QWERTY -> Carpalx
 -- Top row
