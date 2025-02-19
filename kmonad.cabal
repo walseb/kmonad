@@ -2,7 +2,7 @@ cabal-version: 2.2
 
 name:           kmonad
 category:       Application
-version:        0.4.3
+version:        0.4.4
 synopsis:       Advanced keyboard remapping utility
 author:         David Janssen
 maintainer:     janssen.dhj@gmail.com
@@ -35,7 +35,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-    -fwrite-ide-info -hiedir .hiefiles -fdefer-type-errors -Werror=deferred-type-errors -Werror=deferred-out-of-scope-variables -fno-defer-typed-holes -hidir .hifiles
+    -- -fwrite-ide-info -hiedir .hiefiles -fdefer-type-errors -Werror=deferred-type-errors -Werror=deferred-out-of-scope-variables -fno-defer-typed-holes -hidir .hifiles
     -- -plugin-package hiedb-plugin -fplugin Plugin.HieDb
     -Wall
     -Wno-name-shadowing
