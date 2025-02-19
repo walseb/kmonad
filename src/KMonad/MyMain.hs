@@ -19,6 +19,8 @@ import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
 
+import qualified Debug.Trace as Tr 
+
 import KMonad.My
 -- import qualified KMonad.Prelude.Imports as KPrelude
 import qualified System.IO.Unsafe
@@ -140,7 +142,7 @@ aroundPos context modK a =
         ++ a
         ++ [(KeyEvent Release modK)]
 
-tap k = [(KeyEvent Press k), (KeyEvent Release k)]
+tap k = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent Press k), (KeyEvent Release k)]
 
 translationLayer :: [Keycode] -> Keycode -> [KeyEvent]
 translationLayer c b | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b
