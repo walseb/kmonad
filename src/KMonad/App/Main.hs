@@ -104,7 +104,7 @@ initAppEnv cfg = do
     e <- atomically . takeTMVar $ otv
     emitKey snk e
     -- If delay is specified, wait for it
-    for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
+    -- for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
 
   launch_ "emitter_proc_rpc" $ do
     liftIO $ launchServer serverMVar
