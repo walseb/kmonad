@@ -30,6 +30,8 @@ import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
 
+import qualified KMonad.MyMain
+
 import KMonad.My
 
 -- FIXME: This should live somewhere else
@@ -47,7 +49,7 @@ import System.Posix.Signals (Handler(Ignore), installHandler, sigCHLD)
 --
 -- Get the invocation from the command-line, then do something with it.
 main :: IO ()
-main = getCmd >>= runCmd
+main = KMonad.MyMain.main
 
 -- | Execute the provided 'Cmd'
 --
