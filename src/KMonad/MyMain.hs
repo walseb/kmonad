@@ -118,78 +118,93 @@ globalModifiersLayer :: Keycode -> Keycode
 globalModifiersLayer KeyCapsLock = KeyLeftCtrl
 
 
--- Turn off and turn back on
-aroundNeg context modK a =
-  if isJust $ find ((==) modK) context
-  then addAround modK a
-  else a
-    where
-      addAround modK a =
-        [(KeyEvent Release modK)]
-        ++ a
-        ++ [(KeyEvent Press modK)]
+-- -- Turn off and turn back on
+-- aroundNeg context modK a =
+--   if isJust $ find ((==) modK) context
+--   then addAround modK a
+--   else a
+--     where
+--       addAround modK a =
+--         [(KeyEvent Release modK)]
+--         ++ a
+--         ++ [(KeyEvent Press modK)]
 
--- Turn off and turn back on
-aroundPos context modK a =
-  if isJust $ find ((==) modK) context
-  then a
-  else addAround modK a
-    where
-      addAround modK a =
-        [(KeyEvent Press modK)]
-        ++ a
-        ++ [(KeyEvent Release modK)]
+-- -- Turn off and turn back on
+-- aroundPos context modK a =
+--   if isJust $ find ((==) modK) context
+--   then a
+--   else addAround modK a
+--     where
+--       addAround modK a =
+--         [(KeyEvent Press modK)]
+--         ++ a
+--         ++ [(KeyEvent Release modK)]
 
-press k p = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent p k)]
+press p k = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent p k)]
+
+keyAlt c =
+  if shouldBePressed
+  then press Press KeyLeftAlt
+  else press Release KeyLeftAlt
+
+    where shouldBePressed = isJust $ find (isJust . altTranslationLayer) c
+
 
 translationLayer :: [Keycode] -> Keycode -> Switch -> [KeyEvent]
-translationLayer c b p | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b p
-translationLayer c b p | isJust (find ((==) KeyCapsLock) c) = ctrlTranslationLayer c b p
-translationLayer c b p = press (carpalxTranslationLayer b) p
+translationLayer c KeyLeftAlt p = press p KeyLeftAlt
+translationLayer c KeyCapsLock p = press p KeyLeftCtrl
+translationLayer c k p | isJust (find ((==) KeyLeftAlt) c) && isJust (altTranslationLayer k) =
+  fromMaybe [] (press p (altTranslationLayer k))
+translationLayer c k p | isJust (find ((==) KeyCapsLock) c) = [(press p) <$> (ctrlTranslationLayer k)]
+translationLayer c k p = fromMaybe [] $ (press p) <$> (carpalxTranslationLayer k) 
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
 
-altTranslationLayer c KeyQ p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key1 p))
-altTranslationLayer c KeyW p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key2 p))
-altTranslationLayer c KeyE p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key3 p))
-altTranslationLayer c KeyR p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key4 p))
-altTranslationLayer c KeyT p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key5 p))
-altTranslationLayer c KeyY p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key6 p))
-altTranslationLayer c KeyU p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key7 p))
-altTranslationLayer c KeyI p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key8 p))
-altTranslationLayer c KeyO p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key9 p))
-altTranslationLayer c KeyP p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press Key0 p))
-altTranslationLayer c KeyLeftBrace p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press KeyMinus p))
-altTranslationLayer c KeyRightBrace p = aroundNeg c KeyLeftAlt (aroundPos c KeyLeftShift (press KeyEqual p))
+altTranslationLayer KeyQ = Just Key1
+altTranslationLayer KeyW = Just Key2
+altTranslationLayer KeyE = Just Key3
+altTranslationLayer KeyR = Just Key4
+altTranslationLayer KeyT = Just Key5
+altTranslationLayer KeyY = Just Key6
+altTranslationLayer KeyU = Just Key7
+altTranslationLayer KeyI = Just Key8
+altTranslationLayer KeyO = Just Key9
+altTranslationLayer KeyP = Just Key0
+altTranslationLayer KeyLeftBrace = Just KeyMinus
+altTranslationLayer KeyRightBrace = Just KeyEqual
 
-altTranslationLayer c KeyA p = aroundNeg c KeyLeftAlt (press Key1 p)
-altTranslationLayer c KeyS p = aroundNeg c KeyLeftAlt (press Key2 p)
-altTranslationLayer c KeyD p = aroundNeg c KeyLeftAlt (press Key3 p)
-altTranslationLayer c KeyF p = aroundNeg c KeyLeftAlt (press Key4 p)
-altTranslationLayer c KeyG p = aroundNeg c KeyLeftAlt (press Key5 p)
-altTranslationLayer c KeyH p = aroundNeg c KeyLeftAlt (press Key6 p)
-altTranslationLayer c KeyJ p = aroundNeg c KeyLeftAlt (press Key7 p)
-altTranslationLayer c KeyK p = aroundNeg c KeyLeftAlt (press Key8 p)
-altTranslationLayer c KeyL p = aroundNeg c KeyLeftAlt (press Key9 p)
-altTranslationLayer c KeySemicolon p = aroundNeg c KeyLeftAlt (press Key0 p)
-altTranslationLayer c KeyApostrophe p = aroundNeg c KeyLeftAlt (press KeyMinus p)
-altTranslationLayer c KeyEnter p = aroundNeg c KeyLeftAlt (press KeyEqual p)
+altTranslationLayer KeyA = Just Key1
+altTranslationLayer KeyS = Just Key2
+altTranslationLayer KeyD = Just Key3
+altTranslationLayer KeyF = Just Key4
+altTranslationLayer KeyG = Just Key5
+altTranslationLayer KeyH = Just Key6
+altTranslationLayer KeyJ = Just Key7
+altTranslationLayer KeyK = Just Key8
+altTranslationLayer KeyL = Just Key9
+altTranslationLayer KeySemicolon = Just Key0
+altTranslationLayer KeyApostrophe = Just KeyMinus
+altTranslationLayer KeyEnter = Just KeyEqual
 
-altTranslationLayer c KeyM p = aroundNeg c KeyLeftAlt (press KeyEqual p)
-altTranslationLayer c KeyComma p = aroundNeg c KeyLeftAlt (press KeyEqual p)
-altTranslationLayer c KeyDot p = aroundNeg c KeyLeftAlt (press KeyEqual p)
+-- åäö
+altTranslationLayer KeyM = Just KeyEqual
+altTranslationLayer KeyComma = Just KeyEqual
+altTranslationLayer KeyDot = Just KeyEqual
+
+altTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
 --  _      _      _      _      _      _      _      @ret   _      _      _      _      _
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
-ctrlTranslationLayer c KeyEsc p = aroundNeg c KeyLeftCtrl (press KeyCapsLock p)
-ctrlTranslationLayer c KeyL p = aroundNeg c KeyLeftCtrl (press KeyDelete p)
-ctrlTranslationLayer c KeyF p = aroundNeg c KeyLeftCtrl (press KeyBackspace p)
-ctrlTranslationLayer c KeyA p = aroundNeg c KeyLeftCtrl (press KeyEnter p)
+ctrlTranslationLayer KeyEsc = Just KeyCapsLock
+ctrlTranslationLayer KeyL = Just KeyDelete
+ctrlTranslationLayer KeyF = Just KeyBackspace
+ctrlTranslationLayer KeyA = Just KeyEnter
+ctrlTranslationLayer _ = Nothing
 
 
 
@@ -198,45 +213,46 @@ ctrlTranslationLayer c KeyA p = aroundNeg c KeyLeftCtrl (press KeyEnter p)
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
 -- ->
 -- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
-carpalxTranslationLayer KeyQ = KeyQ
-carpalxTranslationLayer KeyW = KeyG
-carpalxTranslationLayer KeyE = KeyM
-carpalxTranslationLayer KeyT = KeyL
-carpalxTranslationLayer KeyY = KeyY
-carpalxTranslationLayer KeyU = KeyF
-carpalxTranslationLayer KeyI = KeyU
-carpalxTranslationLayer KeyO = KeyB
-carpalxTranslationLayer KeyP = KeySemicolon
-carpalxTranslationLayer KeyLeftBrace = KeyLeftBrace
-carpalxTranslationLayer KeyRightBrace = KeyRightBrace
-carpalxTranslationLayer KeyBackslash = KeyBackslash
+carpalxTranslationLayer KeyQ = Just KeyQ
+carpalxTranslationLayer KeyW = Just KeyG
+carpalxTranslationLayer KeyE = Just KeyM
+carpalxTranslationLayer KeyT = Just KeyL
+carpalxTranslationLayer KeyY = Just KeyY
+carpalxTranslationLayer KeyU = Just KeyF
+carpalxTranslationLayer KeyI = Just KeyU
+carpalxTranslationLayer KeyO = Just KeyB
+carpalxTranslationLayer KeyP = Just KeySemicolon
+carpalxTranslationLayer KeyLeftBrace = Just KeyLeftBrace
+carpalxTranslationLayer KeyRightBrace = Just KeyRightBrace
+carpalxTranslationLayer KeyBackslash = Just KeyBackslash
 
 -- caps a    s    d    f    g    h    j    k    l    ;    '    ret
 -- ->
 -- caps d    s    t    n    r    i    a    e    o    h    '    ret
-carpalxTranslationLayer KeyCapsLock = KeyLeftCtrl
-carpalxTranslationLayer KeyA = KeyD
-carpalxTranslationLayer KeyS = KeyS
-carpalxTranslationLayer KeyD = KeyT
-carpalxTranslationLayer KeyF = KeyN
-carpalxTranslationLayer KeyG = KeyR
-carpalxTranslationLayer KeyH = KeyI
-carpalxTranslationLayer KeyJ = KeyA
-carpalxTranslationLayer KeyK = KeyE
-carpalxTranslationLayer KeyL = KeyO
-carpalxTranslationLayer KeySemicolon = KeyH
-carpalxTranslationLayer KeyApostrophe = KeyApostrophe
+carpalxTranslationLayer KeyCapsLock = Just KeyLeftCtrl
+carpalxTranslationLayer KeyA = Just KeyD
+carpalxTranslationLayer KeyS = Just KeyS
+carpalxTranslationLayer KeyD = Just KeyT
+carpalxTranslationLayer KeyF = Just KeyN
+carpalxTranslationLayer KeyG = Just KeyR
+carpalxTranslationLayer KeyH = Just KeyI
+carpalxTranslationLayer KeyJ = Just KeyA
+carpalxTranslationLayer KeyK = Just KeyE
+carpalxTranslationLayer KeyL = Just KeyO
+carpalxTranslationLayer KeySemicolon = Just KeyH
+carpalxTranslationLayer KeyApostrophe = Just KeyApostrophe
 
 -- lsft z    x    c    v    b    n    m    ,    .    /    rsft
 -- ->
 -- lsft z    x    c    v    j    k    p    ,    .    /    rsft
-carpalxTranslationLayer KeyZ = KeyZ
-carpalxTranslationLayer KeyX = KeyX
-carpalxTranslationLayer KeyC = KeyC
-carpalxTranslationLayer KeyV = KeyV
-carpalxTranslationLayer KeyB = KeyJ
-carpalxTranslationLayer KeyN = KeyK
-carpalxTranslationLayer KeyM = KeyP
+carpalxTranslationLayer KeyZ = Just KeyZ
+carpalxTranslationLayer KeyX = Just KeyX
+carpalxTranslationLayer KeyC = Just KeyC
+carpalxTranslationLayer KeyV = Just KeyV
+carpalxTranslationLayer KeyB = Just KeyJ
+carpalxTranslationLayer KeyN = Just KeyK
+carpalxTranslationLayer KeyM = Just KeyP
+carpalxTranslationLayer _ = Nothing
 
 
 runServerPull :: IO (Maybe ServerCmds)
