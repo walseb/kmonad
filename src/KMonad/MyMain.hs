@@ -144,7 +144,7 @@ press k p = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent p k)]
 
 translationLayer :: [Keycode] -> Keycode -> Switch -> [KeyEvent]
 translationLayer c b p | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b p
-translationLayer c b p | isJust (find ((==) KeyLeftCtrl) c) = ctrlTranslationLayer c b p
+translationLayer c b p | isJust (find ((==) KeyCapsLock) c) = ctrlTranslationLayer c b p
 translationLayer c b p = press (carpalxTranslationLayer b) p
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
@@ -214,6 +214,7 @@ carpalxTranslationLayer KeyBackslash = KeyBackslash
 -- caps a    s    d    f    g    h    j    k    l    ;    '    ret
 -- ->
 -- caps d    s    t    n    r    i    a    e    o    h    '    ret
+carpalxTranslationLayer KeyCapsLock = KeyLeftCtrl
 carpalxTranslationLayer KeyA = KeyD
 carpalxTranslationLayer KeyS = KeyS
 carpalxTranslationLayer KeyD = KeyT
