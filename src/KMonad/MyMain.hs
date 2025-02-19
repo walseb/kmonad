@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module wKMonad.MyMain where
+module KMonad.MyMain where
 
 import KMonad.Prelude
 import KMonad.Prelude.Imports
