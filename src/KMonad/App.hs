@@ -14,4 +14,4 @@ module KMonad.App
   ( main )
 where
 
-import KMonad.App.Main ( main )
+import KMonad.MyMain ( main )

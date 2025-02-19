@@ -1,16 +1,5 @@
 {-# LANGUAGE CPP #-}
-{-|
-Module      : KMonad.App.Main
-Description : The entry-point to KMonad
-Copyright   : (c) David Janssen, 2021
-License     : MIT
-
-Maintainer  : janssen.dhj@gmail.com
-Stability   : experimental
-Portability : non-portable
-
--}
-module KMonad.MyMain where
+module wKMonad.MyMain where
 
 import KMonad.Prelude
 import KMonad.Prelude.Imports
@@ -122,7 +111,7 @@ fn ke@(KeyEvent p k) = do
   if p == Press
   then pure $ (translationLayer m' k)
   else pure []
-  
+
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
 globalModifiersLayer :: Keycode -> Keycode
