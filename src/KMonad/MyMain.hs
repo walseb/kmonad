@@ -100,7 +100,7 @@ updateState list (KeyEvent Release k) = filter ((/=) k) list
 updateState list (KeyEvent Press k) = k : list
 
 keyMap :: MVar [Keycode]
-keyMap = System.IO.Unsafe.unsafePerformIO $ newEmptyMVar
+keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
