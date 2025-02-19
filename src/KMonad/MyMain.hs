@@ -119,8 +119,10 @@ fn ke@(KeyEvent p k) = do
   m <- takeMVar keyMap
   let m' = updateState m ke
   _ <- putMVar keyMap m'
-  pure $ (translationLayer m' k) 
-
+  if p == Press
+  then pure $ (translationLayer m' k)
+  else pure []
+  
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
 globalModifiersLayer :: Keycode -> Keycode
@@ -129,30 +131,32 @@ globalModifiersLayer KeyCapsLock = KeyLeftCtrl
 
 -- Turn off and turn back on
 aroundNeg context modK a =
-  if isJust $ find ((==) modK) context 
-  then addAround modK a 
+  if isJust $ find ((==) modK) context
+  then addAround modK a
   else a
-    where 
+    where
       addAround modK a =
         [(KeyEvent Release modK)]
-        ++ a 
+        ++ a
         ++ [(KeyEvent Press modK)]
 
 -- Turn off and turn back on
 aroundPos context modK a =
-  if isJust $ find ((==) modK) context 
+  if isJust $ find ((==) modK) context
   then a
   else addAround modK a
-    where 
+    where
       addAround modK a =
         [(KeyEvent Press modK)]
-        ++ a 
+        ++ a
         ++ [(KeyEvent Release modK)]
 
 tap k = [(KeyEvent Press k), (KeyEvent Release k)]
 
 translationLayer :: [Keycode] -> Keycode -> [KeyEvent]
 translationLayer c b | isJust (find ((==) KeyLeftAlt) c) = altTranslationLayer c b
+translationLayer c b | isJust (find ((==) KeyLeftCtrl) c) = ctrlTranslationLayer c b
+translationLayer c b = tap (carpalxTranslationLayer b)
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -186,6 +190,17 @@ altTranslationLayer c KeyEnter = aroundNeg c KeyLeftAlt (tap KeyEqual)
 altTranslationLayer c KeyM = aroundNeg c KeyLeftAlt (tap KeyEqual)
 altTranslationLayer c KeyComma = aroundNeg c KeyLeftAlt (tap KeyEqual)
 altTranslationLayer c KeyDot = aroundNeg c KeyLeftAlt (tap KeyEqual)
+
+-- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
+--  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
+--  _      _      _      _      _      _      _      @ret   _      _      _      _      _
+--  _      _      _      _      _      _      _      _      _      _      _      _
+--  _   _      _             _                           _      _      _      _
+ctrlTranslationLayer c KeyEsc = aroundNeg c KeyLeftCtrl (tap KeyCapsLock)
+ctrlTranslationLayer c KeyL = aroundNeg c KeyLeftCtrl (tap KeyDelete)
+ctrlTranslationLayer c KeyF = aroundNeg c KeyLeftCtrl (tap KeyBackspace)
+ctrlTranslationLayer c KeyA = aroundNeg c KeyLeftCtrl (tap KeyEnter)
+
 
 carpalxTranslationLayer :: Keycode -> Keycode
 
