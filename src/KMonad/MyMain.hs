@@ -19,7 +19,7 @@ import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
 
-import qualified Debug.Trace as Tr 
+import qualified Debug.Trace as Tr
 
 import KMonad.My
 -- import qualified KMonad.Prelude.Imports as KPrelude
@@ -85,32 +85,37 @@ loop = forever $ do
   snk <- (view keySink)
   sequence $ (emitKey snk) <$> ev
 
--- newtype Key = Key (Maybe KeyEvent)
-
--- combineKeyEvent :: KeyEvent -> KeyEvent -> KeyEvent
--- combineKeyEvent (KeyEvent Press k) = undefined
--- combineKeyEvent (KeyEvent Release k) = undefined
-
--- instance Semigroup Key where
---   (<>) (Key a) (Key b) = Key $ combineKeyEvent <$> a <*> b
-
 -- Here we know that the event has occurred
-updateState :: [Keycode] -> KeyEvent -> [Keycode]
-updateState list (KeyEvent Release k) = filter ((/=) k) list
-updateState list (KeyEvent Press k) = k : list
+updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
+updateKeymap list (KeyEvent Release k) =
+  (fromMaybe list $ (\a -> (filter ((==) a) list)) <$> relevantEntry, fromMaybe [] $ release <$> relevantEntry)
 
-keyMap :: MVar [Keycode]
+  where
+    relevantEntry :: Maybe MyKeyCommand
+    relevantEntry = find (\ (MyKeyCommand k' _) -> k == k') list
+
+updateKeymap list (KeyEvent Press k) =
+  fromMaybe (list, []) $ (\(new, out) -> (new : list, out)) <$> translationLayer (key <$> list) k
+
+keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
+
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
 fn ke@(KeyEvent p k) = do
   cmd <- runServerPull
   m <- takeMVar keyMap
-  let m' = updateState m ke
+  let (m', outKeys) = updateKeymap m ke
   _ <- putMVar keyMap m'
-  pure $ translationLayer m' k p
+  let mod = modifierSet (key <$> m')
+
+  pure $ outKeys ++ mod
+
+  where
+    undoKey k = (KeyEvent Release k)
+    doKey k = (KeyEvent Press k)
 
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
@@ -118,45 +123,50 @@ globalModifiersLayer :: Keycode -> Keycode
 globalModifiersLayer KeyCapsLock = KeyLeftCtrl
 
 
--- -- Turn off and turn back on
--- aroundNeg context modK a =
---   if isJust $ find ((==) modK) context
---   then addAround modK a
---   else a
---     where
---       addAround modK a =
---         [(KeyEvent Release modK)]
---         ++ a
---         ++ [(KeyEvent Press modK)]
+modifierSet c =
+  (keyAlt c) <> (keyCtrl c)
+  where
+    keyAlt c =
+      if shouldBePressed
+      then [KeyEvent Press KeyLeftAlt]
+      else [KeyEvent Release KeyLeftAlt]
+        where shouldBePressed = isJust $ find (isJust . altTranslationLayer) c
 
--- -- Turn off and turn back on
--- aroundPos context modK a =
---   if isJust $ find ((==) modK) context
---   then a
---   else addAround modK a
---     where
---       addAround modK a =
---         [(KeyEvent Press modK)]
---         ++ a
---         ++ [(KeyEvent Release modK)]
+    keyCtrl c =
+      if shouldBePressed
+      then [KeyEvent Press KeyLeftCtrl]
+      else [KeyEvent Release KeyLeftCtrl]
+        where shouldBePressed = isJust $ find (isJust . ctrlTranslationLayer) c
 
-press p k = Tr.trace ("Tapping: " ++ (show k)) [(KeyEvent p k)]
+-- Keycode that's being pressed (input) + way to undo it.
+data MyKeyCommand = MyKeyCommand {
+  key :: Keycode
+  , release :: [KeyEvent]
+  }
+  deriving (Eq, Show) 
 
-keyAlt c =
-  if shouldBePressed
-  then press Press KeyLeftAlt
-  else press Release KeyLeftAlt
+translationLayer :: [Keycode] -> Keycode -> Maybe (MyKeyCommand, [KeyEvent])
 
-    where shouldBePressed = isJust $ find (isJust . altTranslationLayer) c
+translationLayer c k | isJust (find ((==) KeyLeftAlt) c) && isJust (altTranslationLayer k) =
+  standardConvert <$> key
+  where
+    key = altTranslationLayer k
 
+translationLayer c k | isJust (find ((==) KeyCapsLock) c) && isJust (ctrlTranslationLayer k) =
+  standardConvert <$> key
+  where
+    key = ctrlTranslationLayer k
 
-translationLayer :: [Keycode] -> Keycode -> Switch -> [KeyEvent]
-translationLayer c KeyLeftAlt p = press p KeyLeftAlt
-translationLayer c KeyCapsLock p = press p KeyLeftCtrl
-translationLayer c k p | isJust (find ((==) KeyLeftAlt) c) && isJust (altTranslationLayer k) =
-  fromMaybe [] (press p (altTranslationLayer k))
-translationLayer c k p | isJust (find ((==) KeyCapsLock) c) = [(press p) <$> (ctrlTranslationLayer k)]
-translationLayer c k p = fromMaybe [] $ (press p) <$> (carpalxTranslationLayer k) 
+translationLayer c k =
+  standardConvert <$> key
+  where
+    key = carpalxTranslationLayer k
+
+standardConvert k =
+  (MyKeyCommand k release, activate)
+  where
+    activate = [(KeyEvent Press k)]
+    release = [(KeyEvent Release k)]
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
