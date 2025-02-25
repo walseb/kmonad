@@ -95,7 +95,7 @@ updateKeymap list (KeyEvent Release k) =
     relevantEntry = find (\ (MyKeyCommand k' _) -> k == k') list
 
 updateKeymap list (KeyEvent Press k) =
-  fromMaybe (list, []) $ (\(new, out) -> (new : list, out)) <$> translationLayer (key <$> list) k
+  fromMaybe (list, []) $ (\(new, out) -> (new : list, out)) <$> translationLayer (rawKey <$> list) k
 
 keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
@@ -109,9 +109,9 @@ fn ke@(KeyEvent p k) = do
   m <- takeMVar keyMap
   let (m', outKeys) = updateKeymap m ke
   _ <- putMVar keyMap m'
-  let mod = modifierSet (key <$> m')
+  let mod = modifierSet (rawKey <$> m')
 
-  pure $ outKeys ++ mod
+  pure $ mod ++ outKeys
 
   where
     undoKey k = (KeyEvent Release k)
@@ -130,43 +130,49 @@ modifierSet c =
       if shouldBePressed
       then [KeyEvent Press KeyLeftAlt]
       else [KeyEvent Release KeyLeftAlt]
-        where shouldBePressed = isJust $ find (isJust . altTranslationLayer) c
+        where shouldBePressed =
+                (isJust (find ((==) KeyLeftAlt) c))
+                  && (isJust $ find (isJust . altTranslationLayer) c)
 
     keyCtrl c =
       if shouldBePressed
       then [KeyEvent Press KeyLeftCtrl]
       else [KeyEvent Release KeyLeftCtrl]
-        where shouldBePressed = isJust $ find (isJust . ctrlTranslationLayer) c
+        where shouldBePressed =
+                (isJust (find ((==) KeyCapsLock) c))
+                && (isJust $ find (isJust . ctrlTranslationLayer) c)
 
 -- Keycode that's being pressed (input) + way to undo it.
 data MyKeyCommand = MyKeyCommand {
-  key :: Keycode
+  rawKey :: Keycode
   , release :: [KeyEvent]
   }
-  deriving (Eq, Show) 
+  deriving (Eq, Show)
 
 translationLayer :: [Keycode] -> Keycode -> Maybe (MyKeyCommand, [KeyEvent])
 
 translationLayer c k | isJust (find ((==) KeyLeftAlt) c) && isJust (altTranslationLayer k) =
-  standardConvert <$> key
+  standardConvert k <$> key
   where
     key = altTranslationLayer k
 
 translationLayer c k | isJust (find ((==) KeyCapsLock) c) && isJust (ctrlTranslationLayer k) =
-  standardConvert <$> key
+  standardConvert k <$> key
   where
     key = ctrlTranslationLayer k
 
 translationLayer c k =
-  standardConvert <$> key
+  standardConvert k <$> key
   where
     key = carpalxTranslationLayer k
 
-standardConvert k =
+-- k is original raw key
+-- k' is modified key
+standardConvert k k' =
   (MyKeyCommand k release, activate)
   where
-    activate = [(KeyEvent Press k)]
-    release = [(KeyEvent Release k)]
+    activate = [(KeyEvent Press k')]
+    release = [(KeyEvent Release k')]
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -226,7 +232,8 @@ ctrlTranslationLayer _ = Nothing
 carpalxTranslationLayer KeyQ = Just KeyQ
 carpalxTranslationLayer KeyW = Just KeyG
 carpalxTranslationLayer KeyE = Just KeyM
-carpalxTranslationLayer KeyT = Just KeyL
+carpalxTranslationLayer KeyR = Just KeyL
+carpalxTranslationLayer KeyT = Just KeyW
 carpalxTranslationLayer KeyY = Just KeyY
 carpalxTranslationLayer KeyU = Just KeyF
 carpalxTranslationLayer KeyI = Just KeyU
@@ -251,6 +258,7 @@ carpalxTranslationLayer KeyK = Just KeyE
 carpalxTranslationLayer KeyL = Just KeyO
 carpalxTranslationLayer KeySemicolon = Just KeyH
 carpalxTranslationLayer KeyApostrophe = Just KeyApostrophe
+carpalxTranslationLayer KeyEnter = Just KeyEnter
 
 -- lsft z    x    c    v    b    n    m    ,    .    /    rsft
 -- ->
@@ -262,6 +270,10 @@ carpalxTranslationLayer KeyV = Just KeyV
 carpalxTranslationLayer KeyB = Just KeyJ
 carpalxTranslationLayer KeyN = Just KeyK
 carpalxTranslationLayer KeyM = Just KeyP
+carpalxTranslationLayer KeyComma = Just KeyComma
+carpalxTranslationLayer KeyDot = Just KeyDot
+carpalxTranslationLayer KeySlash = Just KeySlash
+carpalxTranslationLayer KeyRightShift = Just KeyRightShift
 carpalxTranslationLayer _ = Nothing
 
 
