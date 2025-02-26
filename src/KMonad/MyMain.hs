@@ -89,7 +89,7 @@ loop = forever $ do
 -- Key release
 updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], Maybe (Switch, MyKeyCommand), [KeyEvent])
 updateKeymap list (KeyEvent Release k) =
-  (fromMaybe list $ (\a -> (filter ((==) a) list)) <$> relevantEntry,
+  (fromMaybe list $ (\a -> (filter ((/=) a) list)) <$> relevantEntry,
     (\a -> (Release, a)) <$> relevantEntry,
     fromMaybe [] $ release <$> relevantEntry)
 
