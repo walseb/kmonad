@@ -279,11 +279,25 @@ ctrlTranslationLayer _ = Nothing
 
 
 -- QWERTY -> Carpalx
+carpalxTranslationLayer :: Keycode -> Maybe MyKeyCommand
+carpalxTranslationLayer k@KeyEsc = Just $ keyCommand k KeyEsc []
+carpalxTranslationLayer k@KeyHome = Just $ keyCommand k KeyHome []
+carpalxTranslationLayer k@KeyEnd = Just $ keyCommand k KeyEnd []
+carpalxTranslationLayer k@KeyInsert = Just $ keyCommand k KeyInsert []
+carpalxTranslationLayer k@KeyF1 = Just $ keyCommand k KeyF1 []
+carpalxTranslationLayer k@KeyF2 = Just $ keyCommand k KeyF2 []
+carpalxTranslationLayer k@KeyF3 = Just $ keyCommand k KeyF3 []
+carpalxTranslationLayer k@KeyF4 = Just $ keyCommand k KeyF4 []
+carpalxTranslationLayer k@KeyF5 = Just $ keyCommand k KeyF5 []
+carpalxTranslationLayer k@KeyF6 = Just $ keyCommand k KeyF6 []
+carpalxTranslationLayer k@KeyF7 = Just $ keyCommand k KeyF7 []
+carpalxTranslationLayer k@KeyF8 = Just $ keyCommand k KeyF8 []
+carpalxTranslationLayer k@KeyF9 = Just $ keyCommand k KeyF9 []
+carpalxTranslationLayer k@KeyF10 = Just $ keyCommand k KeyF10 []
 
 -- grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
 -- ->
 -- grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-carpalxTranslationLayer :: Keycode -> Maybe MyKeyCommand
 carpalxTranslationLayer k@KeyGrave = Just $ keyCommand k KeyGrave []
 carpalxTranslationLayer k@Key1 = Just $ keyCommand k Key1 []
 carpalxTranslationLayer k@Key2 = Just $ keyCommand k Key2 []
