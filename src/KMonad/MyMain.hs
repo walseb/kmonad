@@ -212,8 +212,13 @@ translationLayer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
     findCtrl (ModCtrl Press) = True
     findCtrl _ = False
 
+translationLayer _ KeyTab =
+  Tr.trace "Going manual"
+    Just $ keyCommand KeyTab KeyTab []
+
 translationLayer _ k =
-  carpalxTranslationLayer k
+  Tr.trace "Entering carpalx layer."
+    carpalxTranslationLayer k
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -321,7 +326,7 @@ carpalxTranslationLayer k@KeyBackspace = Just $ keyCommand k KeyBackspace []
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
 -- ->
 -- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
-carpalxTranslationLayer k@KeyTab = Just $ keyCommand k KeyTab []
+carpalxTranslationLayer k@KeyTab = Tr.trace "Got the tab bind!" $ Just $ keyCommand k KeyTab []
 carpalxTranslationLayer k@KeyQ = Just $ keyCommand k KeyQ []
 carpalxTranslationLayer k@KeyW = Just $ keyCommand k KeyG []
 carpalxTranslationLayer k@KeyE = Just $ keyCommand k KeyM []
