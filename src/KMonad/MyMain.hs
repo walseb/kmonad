@@ -248,9 +248,6 @@ keyMod k mod =
     []
     mod
 
-altCtrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
-altCtrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
-altCtrlTranslationLayer _ = Nothing
 
 altTranslationLayer :: Keycode -> Maybe MyKeyCommand
 altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
@@ -285,6 +282,11 @@ altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 altTranslationLayer _ = Nothing
+
+altCtrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
+altCtrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
+altCtrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
+altCtrlTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
