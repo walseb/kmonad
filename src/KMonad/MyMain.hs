@@ -150,6 +150,9 @@ modifierSet c (Just (Release, curr)) =
 modifierSet _ (Just (Press, curr)) =
   applyMods <$> mods curr
 
+modifierSet _ Nothing =
+  []
+
 modDeleteDuplicates c = foldr
                 (\a b ->
                   if any (eqConstructor a) b
