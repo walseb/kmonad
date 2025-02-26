@@ -134,7 +134,7 @@ mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 modifierSet c (Just (Release, curr)) =
   -- If the key request is unique, just release it
   (concat (deleteRequirement <$> unique))
-    -- If the key request isn't unique, then apply the 
+    -- If the key request isn't unique, then apply the
     ++ (applyMods <$> nonUnique)
   where
     cMod = (concat $ mods <$> c)
@@ -145,7 +145,7 @@ modifierSet c (Just (Release, curr)) =
     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
     deleteRequirement _ = []
 
-    nonUnique = modDeleteDuplicates $ filter (`elem` (mods curr)) cMod 
+    nonUnique = modDeleteDuplicates $ filter (`elem` (mods curr)) cMod
 
 modifierSet _ (Just (Press, curr)) =
   applyMods <$> mods curr
@@ -208,11 +208,11 @@ translationLayer _ k =
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
 
-keyCommand k mod =
+keyCommand k k' mod =
   MyKeyCommand
     k
-    [KeyEvent Press k]
-    [KeyEvent Release k]
+    [KeyEvent Press k']
+    [KeyEvent Release k']
     mod
 
 keyMod k mod =
@@ -223,36 +223,36 @@ keyMod k mod =
     mod
 
 altTranslationLayer :: Keycode -> Maybe MyKeyCommand
-altTranslationLayer KeyQ = Just $ keyCommand Key1 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyW = Just $ keyCommand Key2 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyE = Just $ keyCommand Key3 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyR = Just $ keyCommand Key4 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyT = Just $ keyCommand Key5 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyY = Just $ keyCommand Key6 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyU = Just $ keyCommand Key7 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyI = Just $ keyCommand Key8 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyO = Just $ keyCommand Key9 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyP = Just $ keyCommand Key0 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyLeftBrace = Just $ keyCommand KeyMinus [(ModShift Press), (ModAlt Release)]
-altTranslationLayer KeyRightBrace = Just $ keyCommand KeyEqual [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyW = Just $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyE = Just $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyR = Just $ keyCommand k Key4 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyT = Just $ keyCommand k Key5 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyY = Just $ keyCommand k Key6 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyU = Just $ keyCommand k Key7 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyI = Just $ keyCommand k Key8 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyO = Just $ keyCommand k Key9 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyP = Just $ keyCommand k Key0 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyLeftBrace = Just $ keyCommand k KeyMinus [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyRightBrace = Just $ keyCommand k KeyEqual [(ModShift Press), (ModAlt Release)]
 
-altTranslationLayer KeyA = Just $ keyCommand Key1 [(ModAlt Release)]
-altTranslationLayer KeyS = Just $ keyCommand Key2 [(ModAlt Release)]
-altTranslationLayer KeyD = Just $ keyCommand Key3 [(ModAlt Release)]
-altTranslationLayer KeyF = Just $ keyCommand Key4 [(ModAlt Release)]
-altTranslationLayer KeyG = Just $ keyCommand Key5 [(ModAlt Release)]
-altTranslationLayer KeyH = Just $ keyCommand Key6 [(ModAlt Release)]
-altTranslationLayer KeyJ = Just $ keyCommand Key7 [(ModAlt Release)]
-altTranslationLayer KeyK = Just $ keyCommand Key8 [(ModAlt Release)]
-altTranslationLayer KeyL = Just $ keyCommand Key9 [(ModAlt Release)]
-altTranslationLayer KeySemicolon = Just $ keyCommand Key0 [(ModAlt Release)]
-altTranslationLayer KeyApostrophe = Just $ keyCommand KeyMinus [(ModAlt Release)]
-altTranslationLayer KeyEnter = Just $ keyCommand KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyA = Just $ keyCommand k Key1 [(ModAlt Release)]
+altTranslationLayer k@KeyS = Just $ keyCommand k Key2 [(ModAlt Release)]
+altTranslationLayer k@KeyD = Just $ keyCommand k Key3 [(ModAlt Release)]
+altTranslationLayer k@KeyF = Just $ keyCommand k Key4 [(ModAlt Release)]
+altTranslationLayer k@KeyG = Just $ keyCommand k Key5 [(ModAlt Release)]
+altTranslationLayer k@KeyH = Just $ keyCommand k Key6 [(ModAlt Release)]
+altTranslationLayer k@KeyJ = Just $ keyCommand k Key7 [(ModAlt Release)]
+altTranslationLayer k@KeyK = Just $ keyCommand k Key8 [(ModAlt Release)]
+altTranslationLayer k@KeyL = Just $ keyCommand k Key9 [(ModAlt Release)]
+altTranslationLayer k@KeySemicolon = Just $ keyCommand k Key0 [(ModAlt Release)]
+altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Release)]
+altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer KeyM = Just $ keyCommand KeyEqual [(ModAlt Release)]
-altTranslationLayer KeyComma = Just $ keyCommand KeyEqual [(ModAlt Release)]
-altTranslationLayer KeyDot = Just $ keyCommand KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyM = Just $ keyCommand k KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 altTranslationLayer _ = Nothing
 
@@ -262,10 +262,10 @@ altTranslationLayer _ = Nothing
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
 ctrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
-ctrlTranslationLayer KeyEsc = Just $ keyCommand KeyCapsLock [(ModCtrl Release)]
-ctrlTranslationLayer KeyL = Just $ keyCommand KeyDelete [(ModCtrl Release)]
-ctrlTranslationLayer KeyF = Just $ keyCommand KeyBackspace [(ModCtrl Release)]
-ctrlTranslationLayer KeyA = Just $ keyCommand KeyEnter [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyEsc = Just $ keyCommand k KeyCapsLock [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyA = Just $ keyCommand k KeyEnter [(ModCtrl Release)]
 ctrlTranslationLayer _ = Nothing
 
 
@@ -276,85 +276,85 @@ ctrlTranslationLayer _ = Nothing
 -- ->
 -- grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
 carpalxTranslationLayer :: Keycode -> Maybe MyKeyCommand
-carpalxTranslationLayer KeyGrave = Just $ keyCommand KeyGrave []
-carpalxTranslationLayer Key1 = Just $ keyCommand Key1 []
-carpalxTranslationLayer Key2 = Just $ keyCommand Key2 []
-carpalxTranslationLayer Key3 = Just $ keyCommand Key3 []
-carpalxTranslationLayer Key4 = Just $ keyCommand Key4 []
-carpalxTranslationLayer Key5 = Just $ keyCommand Key5 []
-carpalxTranslationLayer Key6 = Just $ keyCommand Key6 []
-carpalxTranslationLayer Key7 = Just $ keyCommand Key7 []
-carpalxTranslationLayer Key8 = Just $ keyCommand Key8 []
-carpalxTranslationLayer Key9 = Just $ keyCommand Key9 []
-carpalxTranslationLayer Key0 = Just $ keyCommand Key0 []
-carpalxTranslationLayer KeyMinus = Just $ keyCommand KeyMinus []
-carpalxTranslationLayer KeyEqual = Just $ keyCommand KeyEqual []
-carpalxTranslationLayer KeyBackspace = Just $ keyCommand KeyBackspace []
+carpalxTranslationLayer k@KeyGrave = Just $ keyCommand k KeyGrave []
+carpalxTranslationLayer k@Key1 = Just $ keyCommand k Key1 []
+carpalxTranslationLayer k@Key2 = Just $ keyCommand k Key2 []
+carpalxTranslationLayer k@Key3 = Just $ keyCommand k Key3 []
+carpalxTranslationLayer k@Key4 = Just $ keyCommand k Key4 []
+carpalxTranslationLayer k@Key5 = Just $ keyCommand k Key5 []
+carpalxTranslationLayer k@Key6 = Just $ keyCommand k Key6 []
+carpalxTranslationLayer k@Key7 = Just $ keyCommand k Key7 []
+carpalxTranslationLayer k@Key8 = Just $ keyCommand k Key8 []
+carpalxTranslationLayer k@Key9 = Just $ keyCommand k Key9 []
+carpalxTranslationLayer k@Key0 = Just $ keyCommand k Key0 []
+carpalxTranslationLayer k@KeyMinus = Just $ keyCommand k KeyMinus []
+carpalxTranslationLayer k@KeyEqual = Just $ keyCommand k KeyEqual []
+carpalxTranslationLayer k@KeyBackspace = Just $ keyCommand k KeyBackspace []
 
 
 -- Top row
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
 -- ->
 -- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
-carpalxTranslationLayer KeyTab = Just $ keyCommand KeyTab []
-carpalxTranslationLayer KeyQ = Just $ keyCommand KeyQ []
-carpalxTranslationLayer KeyW = Just $ keyCommand KeyG []
-carpalxTranslationLayer KeyE = Just $ keyCommand KeyM []
-carpalxTranslationLayer KeyR = Just $ keyCommand KeyL []
-carpalxTranslationLayer KeyT = Just $ keyCommand KeyW []
-carpalxTranslationLayer KeyY = Just $ keyCommand KeyY []
-carpalxTranslationLayer KeyU = Just $ keyCommand KeyF []
-carpalxTranslationLayer KeyI = Just $ keyCommand KeyU []
-carpalxTranslationLayer KeyO = Just $ keyCommand KeyB []
-carpalxTranslationLayer KeyP = Just $ keyCommand KeySemicolon []
-carpalxTranslationLayer KeyLeftBrace = Just $ keyCommand KeyLeftBrace []
-carpalxTranslationLayer KeyRightBrace = Just $ keyCommand KeyRightBrace []
-carpalxTranslationLayer KeyBackslash = Just $ keyCommand KeyBackslash []
+carpalxTranslationLayer k@KeyTab = Just $ keyCommand k KeyTab []
+carpalxTranslationLayer k@KeyQ = Just $ keyCommand k KeyQ []
+carpalxTranslationLayer k@KeyW = Just $ keyCommand k KeyG []
+carpalxTranslationLayer k@KeyE = Just $ keyCommand k KeyM []
+carpalxTranslationLayer k@KeyR = Just $ keyCommand k KeyL []
+carpalxTranslationLayer k@KeyT = Just $ keyCommand k KeyW []
+carpalxTranslationLayer k@KeyY = Just $ keyCommand k KeyY []
+carpalxTranslationLayer k@KeyU = Just $ keyCommand k KeyF []
+carpalxTranslationLayer k@KeyI = Just $ keyCommand k KeyU []
+carpalxTranslationLayer k@KeyO = Just $ keyCommand k KeyB []
+carpalxTranslationLayer k@KeyP = Just $ keyCommand k KeySemicolon []
+carpalxTranslationLayer k@KeyLeftBrace = Just $ keyCommand k KeyLeftBrace []
+carpalxTranslationLayer k@KeyRightBrace = Just $ keyCommand k KeyRightBrace []
+carpalxTranslationLayer k@KeyBackslash = Just $ keyCommand k KeyBackslash []
 
 -- caps a    s    d    f    g    h    j    k    l    ;    '    ret
 -- ->
 -- caps d    s    t    n    r    i    a    e    o    h    '    ret
-carpalxTranslationLayer KeyCapsLock = Just $ keyMod KeyLeftCtrl [ModCtrl Press]
-carpalxTranslationLayer KeyA = Just $ keyCommand KeyD []
-carpalxTranslationLayer KeyS = Just $ keyCommand KeyS []
-carpalxTranslationLayer KeyD = Just $ keyCommand KeyT []
-carpalxTranslationLayer KeyF = Just $ keyCommand KeyN []
-carpalxTranslationLayer KeyG = Just $ keyCommand KeyR []
-carpalxTranslationLayer KeyH = Just $ keyCommand KeyI []
-carpalxTranslationLayer KeyJ = Just $ keyCommand KeyA []
-carpalxTranslationLayer KeyK = Just $ keyCommand KeyE []
-carpalxTranslationLayer KeyL = Just $ keyCommand KeyO []
-carpalxTranslationLayer KeySemicolon = Just $ keyCommand KeyH []
-carpalxTranslationLayer KeyApostrophe = Just $ keyCommand KeyApostrophe []
-carpalxTranslationLayer KeyEnter = Just $ keyCommand KeyEnter []
+carpalxTranslationLayer k@KeyCapsLock = Just $ keyMod k [ModCtrl Press]
+carpalxTranslationLayer k@KeyA = Just $ keyCommand k KeyD []
+carpalxTranslationLayer k@KeyS = Just $ keyCommand k KeyS []
+carpalxTranslationLayer k@KeyD = Just $ keyCommand k KeyT []
+carpalxTranslationLayer k@KeyF = Just $ keyCommand k KeyN []
+carpalxTranslationLayer k@KeyG = Just $ keyCommand k KeyR []
+carpalxTranslationLayer k@KeyH = Just $ keyCommand k KeyI []
+carpalxTranslationLayer k@KeyJ = Just $ keyCommand k KeyA []
+carpalxTranslationLayer k@KeyK = Just $ keyCommand k KeyE []
+carpalxTranslationLayer k@KeyL = Just $ keyCommand k KeyO []
+carpalxTranslationLayer k@KeySemicolon = Just $ keyCommand k KeyH []
+carpalxTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyApostrophe []
+carpalxTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEnter []
 
 -- lsft z    x    c    v    b    n    m    ,    .    /    rsft
 -- ->
 -- lsft z    x    c    v    j    k    p    ,    .    /    rsft
-carpalxTranslationLayer KeyLeftShift = Just $ keyMod KeyLeftShift [ModShift Press]
-carpalxTranslationLayer KeyZ = Just $ keyCommand KeyZ []
-carpalxTranslationLayer KeyX = Just $ keyCommand KeyX []
-carpalxTranslationLayer KeyC = Just $ keyCommand KeyC []
-carpalxTranslationLayer KeyV = Just $ keyCommand KeyV []
-carpalxTranslationLayer KeyB = Just $ keyCommand KeyJ []
-carpalxTranslationLayer KeyN = Just $ keyCommand KeyK []
-carpalxTranslationLayer KeyM = Just $ keyCommand KeyP []
-carpalxTranslationLayer KeyComma = Just $ keyCommand KeyComma []
-carpalxTranslationLayer KeyDot = Just $ keyCommand KeyDot []
-carpalxTranslationLayer KeySlash = Just $ keyCommand KeySlash []
-carpalxTranslationLayer KeyRightShift = Just $ keyMod KeyRightShift [ModShift Press]
+carpalxTranslationLayer k@KeyLeftShift = Just $ keyMod k [ModShift Press]
+carpalxTranslationLayer k@KeyZ = Just $ keyCommand k KeyZ []
+carpalxTranslationLayer k@KeyX = Just $ keyCommand k KeyX []
+carpalxTranslationLayer k@KeyC = Just $ keyCommand k KeyC []
+carpalxTranslationLayer k@KeyV = Just $ keyCommand k KeyV []
+carpalxTranslationLayer k@KeyB = Just $ keyCommand k KeyJ []
+carpalxTranslationLayer k@KeyN = Just $ keyCommand k KeyK []
+carpalxTranslationLayer k@KeyM = Just $ keyCommand k KeyP []
+carpalxTranslationLayer k@KeyComma = Just $ keyCommand k KeyComma []
+carpalxTranslationLayer k@KeyDot = Just $ keyCommand k KeyDot []
+carpalxTranslationLayer k@KeySlash = Just $ keyCommand k KeySlash []
+carpalxTranslationLayer k@KeyRightShift = Just $ keyMod k [ModShift Press]
 
 --   lctl lmet lalt           spc            ralt rmet cmp  rctl
 -- ->
 --   _    lmet lalt           spc            ralt rmet _  rctl
-carpalxTranslationLayer KeyLeftCtrl = Nothing
-carpalxTranslationLayer KeyLeftMeta = Just $ keyCommand KeyLeftMeta []
-carpalxTranslationLayer KeyLeftAlt = Just $ keyMod KeyLeftAlt [ModAlt Press]
-carpalxTranslationLayer KeySpace = Just $ keyCommand KeySpace []
-carpalxTranslationLayer KeyRightAlt = Just $ keyCommand KeyRightAlt []
-carpalxTranslationLayer KeyRightMeta = Just $ keyCommand KeyRightMeta []
-carpalxTranslationLayer KeyCompose = Nothing
-carpalxTranslationLayer KeyRightCtrl = Just $ keyCommand KeyRightCtrl []
+carpalxTranslationLayer k@KeyLeftCtrl = Nothing
+carpalxTranslationLayer k@KeyLeftMeta = Just $ keyCommand k KeyLeftMeta []
+carpalxTranslationLayer k@KeyLeftAlt = Just $ keyMod k [ModAlt Press]
+carpalxTranslationLayer k@KeySpace = Just $ keyCommand k KeySpace []
+carpalxTranslationLayer k@KeyRightAlt = Just $ keyCommand k KeyRightAlt []
+carpalxTranslationLayer k@KeyRightMeta = Just $ keyCommand k KeyRightMeta []
+carpalxTranslationLayer k@KeyCompose = Nothing
+carpalxTranslationLayer k@KeyRightCtrl = Just $ keyCommand k KeyRightCtrl []
 
 carpalxTranslationLayer _ = Nothing
 
