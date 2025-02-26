@@ -212,9 +212,9 @@ translationLayer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
     findCtrl (ModCtrl Press) = True
     findCtrl _ = False
 
-translationLayer _ KeyTab =
-  Tr.trace "Going manual"
-    Just $ keyCommand KeyTab KeyTab []
+-- translationLayer _ KeyTab =
+--   Tr.trace "Going manual"
+--     Just $ keyCommand KeyTab KeyTab []
 
 translationLayer _ k =
   Tr.trace "Entering carpalx layer."
