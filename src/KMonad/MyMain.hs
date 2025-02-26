@@ -114,7 +114,8 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
-fn ke = do
+fn (KeyEvent s k) = do
+  let ke = KeyEvent s (carpalxTranslationLayer k)
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
@@ -200,7 +201,7 @@ data MyKeyCommand = MyKeyCommand {
 
 translationLayer :: [MyModifiersRequested] -> Keycode -> Maybe (MyKeyCommand)
 translationLayer mod k =
-  translationLayer' mod (carpalxTranslationLayer k)
+  translationLayer' mod k
 
   where
     translationLayer' mod k@KeyLeftAlt = Just $ keyMod k [ModAlt Press]
