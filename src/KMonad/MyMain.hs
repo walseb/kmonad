@@ -209,9 +209,14 @@ translationLayer mod k =
     translationLayer' mod k@KeyLeftShift = Just $ keyMod k [ModShift Press]
     translationLayer' mod k@KeyCapsLock = Just $ keyMod k [ModCtrl Press]
 
-    -- I don't know why, but this is needed. Seems to be some bug in GHC??
-    -- translationLayer' _ KeyTab =
-    --   Just $ keyCommand KeyTab KeyTab []
+    translationLayer' mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
+      altCtrlTranslationLayer k
+      where
+        findAlt (ModAlt Press) = True
+        findAlt _ = False
+        findCtrl (ModCtrl Press) = True
+        findCtrl _ = False
+
     translationLayer' mod k | any findAlt mod && isJust (altTranslationLayer k) =
       altTranslationLayer k
       where
@@ -229,7 +234,6 @@ translationLayer mod k =
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
-
 keyCommand k k' mod =
   MyKeyCommand
     k
@@ -243,6 +247,10 @@ keyMod k mod =
     []
     []
     mod
+
+altCtrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
+altCtrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
+altCtrlTranslationLayer _ = Nothing
 
 altTranslationLayer :: Keycode -> Maybe MyKeyCommand
 altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
@@ -272,7 +280,7 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyM = Just $ keyCommand k KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyP = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
