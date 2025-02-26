@@ -123,6 +123,7 @@ fn ke = do
 
   () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   let (m', curr, outKeys) = updateKeymap m ke
+  () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
   let mod = modifierSet m' curr
