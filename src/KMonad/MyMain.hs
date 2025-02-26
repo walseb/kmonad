@@ -117,18 +117,18 @@ fn :: KeyEvent -> IO [KeyEvent]
 fn ke = do
   -- "recieved"
 
-  () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
+  -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
   cmd <- runServerPull
   m <- takeMVar keyMap
 
-  () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
+  -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   let (m', curr, outKeys) = updateKeymap m ke
-  () <- Tr.trace ("Current key: " ++ show curr) (pure ())
-  () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
+  -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
+  -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
   let mod = modifierSet m' curr
 
-  () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
+  -- () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
   pure $ mod ++ outKeys
 
   where
@@ -212,13 +212,12 @@ translationLayer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
     findCtrl (ModCtrl Press) = True
     findCtrl _ = False
 
--- translationLayer _ KeyTab =
---   Tr.trace "Going manual"
---     Just $ keyCommand KeyTab KeyTab []
+-- I don't know why, but this is needed. Seems to be some bug in GHC??
+translationLayer _ KeyTab =
+  Just $ keyCommand KeyTab KeyTab []
 
 translationLayer _ k =
-  Tr.trace "Entering carpalx layer."
-    carpalxTranslationLayer k
+  carpalxTranslationLayer k
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -326,7 +325,7 @@ carpalxTranslationLayer k@KeyBackspace = Just $ keyCommand k KeyBackspace []
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
 -- ->
 -- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
-carpalxTranslationLayer k@KeyTab = Tr.trace "Got the tab bind!" $ Just $ keyCommand k KeyTab []
+carpalxTranslationLayer k@KeyTab = Just $ keyCommand k KeyTab []
 carpalxTranslationLayer k@KeyQ = Just $ keyCommand k KeyQ []
 carpalxTranslationLayer k@KeyW = Just $ keyCommand k KeyG []
 carpalxTranslationLayer k@KeyE = Just $ keyCommand k KeyM []
