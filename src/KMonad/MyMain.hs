@@ -99,8 +99,10 @@ updateKeymap list (KeyEvent Release k) =
 
 -- Key press
 updateKeymap list (KeyEvent Press k) =
-  fromMaybe (list, Nothing, []) $ (\new -> (new : list, Just (Press, new), activation new)) <$> newEntry
-    where newEntry = translationLayer (concat (mods <$> list)) k
+  Tr.trace ("New entry: " ++ (show newEntry)) $
+    fromMaybe (list, Nothing, []) $ (\new -> (new : list, Just (Press, new), activation new)) <$> newEntry
+    where
+      newEntry = translationLayer (concat (mods <$> list)) k
 
 keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
