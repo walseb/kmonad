@@ -117,18 +117,18 @@ fn :: KeyEvent -> IO [KeyEvent]
 fn ke = do
   -- "recieved"
 
-  -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
+  () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
   cmd <- runServerPull
   m <- takeMVar keyMap
 
-  -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
+  () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   let (m', curr, outKeys) = updateKeymap m ke
-  -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
-  -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
+  () <- Tr.trace ("Current key: " ++ show curr) (pure ())
+  () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
   let mod = modifierSet m' curr
 
-  -- () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
+  () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
   pure $ mod ++ outKeys
 
   where
