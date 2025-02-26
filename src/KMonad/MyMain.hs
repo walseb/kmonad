@@ -100,7 +100,7 @@ updateKeymap list (KeyEvent Release k) =
 -- Key press
 updateKeymap list (KeyEvent Press k) =
   fromMaybe (list, Nothing, []) $ (\new -> (new : list, Just (Press, new), activation new)) <$> newEntry
-    where newEntry = translationLayer (rawKey <$> list) k
+    where newEntry = translationLayer (concat (mods <$> list)) k
 
 keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
@@ -112,13 +112,17 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
-fn ke@(KeyEvent p k) = do
+fn ke = do
+  -- "recieved"
+
+  () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
   cmd <- runServerPull
   m <- takeMVar keyMap
   let (m', curr, outKeys) = updateKeymap m ke
   _ <- putMVar keyMap m'
   let mod = modifierSet m' curr
 
+  () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
   pure $ mod ++ outKeys
 
   where
@@ -183,15 +187,21 @@ data MyKeyCommand = MyKeyCommand {
   }
   deriving (Eq, Show)
 
-translationLayer :: [Keycode] -> Keycode -> Maybe (MyKeyCommand)
+translationLayer :: [MyModifiersRequested] -> Keycode -> Maybe (MyKeyCommand)
 
-translationLayer c k | any ((==) KeyLeftAlt) c && isJust (altTranslationLayer k) =
+translationLayer mod k | any findAlt mod && isJust (altTranslationLayer k) =
   altTranslationLayer k
+  where
+    findAlt (ModAlt Press) = True
+    findAlt _ = False
 
-translationLayer c k | any ((==) KeyCapsLock) c && isJust (ctrlTranslationLayer k) =
+translationLayer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
   ctrlTranslationLayer k
+  where
+    findCtrl (ModCtrl Press) = True
+    findCtrl _ = False
 
-translationLayer c k =
+translationLayer _ k =
   carpalxTranslationLayer k
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
