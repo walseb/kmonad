@@ -248,18 +248,17 @@ keyMod k mod =
     []
     mod
 
-
 altTranslationLayer :: Keycode -> Maybe MyKeyCommand
 altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyG = Just $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyM = Just $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyL = Just $ keyCommand k Key4 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyW = Just $ keyCommand k Key5 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyY = Just $ keyCommand k Key6 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyF = Just $ keyCommand k Key7 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyU = Just $ keyCommand k Key8 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyB = Just $ keyCommand k Key9 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeySemicolon = Just $ keyCommand k Key0 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyY = Just $ keyCommand k Key8 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyF = Just $ keyCommand k Key9 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyU = Just $ keyCommand k Key0 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyB = Just $ keyCommand k Key7 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeySemicolon = Just $ keyCommand k Key6 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyLeftBrace = Just $ keyCommand k KeyMinus [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyRightBrace = Just $ keyCommand k KeyEqual [(ModShift Press), (ModAlt Release)]
 
