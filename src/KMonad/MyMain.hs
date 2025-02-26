@@ -145,7 +145,7 @@ modifierSet c (Just (Release, curr)) =
     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
     deleteRequirement _ = []
 
-    nonUnique = modDeleteDuplicates $ filter (`elem` (mods curr)) cMod
+    nonUnique = modDeleteDuplicates $ filter (not . (`elem` (mods curr))) cMod
 
 modifierSet _ (Just (Press, curr)) =
   applyMods <$> mods curr
