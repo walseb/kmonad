@@ -118,7 +118,10 @@ fn ke = do
   () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
   cmd <- runServerPull
   m <- takeMVar keyMap
+
+  () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   let (m', curr, outKeys) = updateKeymap m ke
+  () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
   let mod = modifierSet m' curr
 
@@ -138,14 +141,15 @@ modifierSet c (Just (Release, curr)) =
     ++ (applyMods <$> nonUnique)
   where
     cMod = (concat $ mods <$> c)
-    unique = filter (\a -> any (eqMod a) cMod) (mods curr)
+    unique = filter (\a -> not (any (eqMod a) cMod)) (mods curr)
+
+    nonUnique = filter (\a -> any (eqMod a) (mods curr)) cMod 
 
     deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
     deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
     deleteRequirement _ = []
 
-    nonUnique = filter (\a -> not (any (eqMod a) cMod)) (mods curr)
     -- nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
 
 modifierSet _ (Just (Press, curr)) =
