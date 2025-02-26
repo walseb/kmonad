@@ -138,14 +138,15 @@ modifierSet c (Just (Release, curr)) =
     ++ (applyMods <$> nonUnique)
   where
     cMod = (concat $ mods <$> c)
-    unique = filter (not . (`elem` cMod)) (mods curr)
+    unique = filter (\a -> any (eqMod a) cMod) (mods curr)
 
     deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
     deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
     deleteRequirement _ = []
 
-    nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
+    nonUnique = filter (\a -> not (any (eqMod a) cMod)) (mods curr)
+    -- nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
 
 modifierSet _ (Just (Press, curr)) =
   applyMods <$> mods curr
@@ -155,16 +156,16 @@ modifierSet _ Nothing =
 
 modDeleteDuplicates c = foldr
                 (\a b ->
-                  if any (eqConstructor a) b
+                  if any (eqMod a) b
                   then b
                   else (a : b))
                 []
                 c
-  where
-    eqConstructor (ModShift _) (ModShift _) = True
-    eqConstructor (ModAlt _) (ModAlt _) = True
-    eqConstructor (ModCtrl _) (ModCtrl _) = True
-    eqConstructor _ _ = False
+
+eqMod (ModShift _) (ModShift _) = True
+eqMod (ModAlt _) (ModAlt _) = True
+eqMod (ModCtrl _) (ModCtrl _) = True
+eqMod _ _ = False
 
 
 applyMods (ModShift p) = KeyEvent p KeyLeftShift
