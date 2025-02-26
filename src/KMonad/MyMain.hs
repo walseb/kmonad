@@ -223,6 +223,7 @@ translationLayer mod k =
         findCtrl (ModCtrl Press) = True
         findCtrl _ = False
 
+    translationLayer' mod k = Just $ keyCommand k k []
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
