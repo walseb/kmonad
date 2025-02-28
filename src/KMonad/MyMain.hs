@@ -87,22 +87,29 @@ loop = forever $ do
 
 -- Here we know that the event has occurred
 -- Key release
-updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], Maybe (Switch, MyKeyCommand), [KeyEvent])
+updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
 updateKeymap list (KeyEvent Release k) =
-  (fromMaybe list $ (\a -> (filter ((/=) a) list)) <$> relevantEntry,
-    (\a -> (Release, a)) <$> relevantEntry,
-    fromMaybe [] $ release <$> relevantEntry)
+  foldr (\a@(MyKeyCommand k' _ _ _) (b, ev) -> if (any (== k') (rawKey <$> b)) then (b, release a ++ ev) else ((a : b), ev)) ([], []) list
+  -- construct <$> relevantEntries
 
   where
-    relevantEntry :: Maybe MyKeyCommand
-    relevantEntry = find (\ (MyKeyCommand k' _ _ _) -> k == k') list
+    -- relevantEntries :: [MyKeyCommand]
+    -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
+
+    -- construct entr@(MyKeyCommand k _ _ _) =
+    --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
+    --     release entr)]
+
+    mods c entr = modifierSet c (Release, entr)
+
 
 -- Key press
 updateKeymap list (KeyEvent Press k) =
   -- Tr.trace ("New entry: " ++ (show newEntry)) $
-  fromMaybe (list, Nothing, []) $ (\new -> (new : list, Just (Press, new), activation new)) <$> newEntry
+  foldr (\new (old, cmd) -> (new ++ old, (modifiers old new) ++ (activation new) ++ cmd)) (list, []) newEntries
     where
-      newEntry = translationLayer (concat (mods <$> list)) k
+      newEntries = translationLayer (concat (mods <$> list)) k
+      modifiers c new = modifierSet c (Press, new)
 
 keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
@@ -123,14 +130,14 @@ fn (KeyEvent s k) = do
   m <- takeMVar keyMap
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
-  let (m', curr, outKeys) = updateKeymap m ke
+  -- let (m', curr, outKeys) = updateKeymap m ke
+  let (m', outKeys) = updateKeymap m ke
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
-  let mod = modifierSet m' curr
 
   -- () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
-  pure $ mod ++ outKeys
+  pure $ outKeys
 
   where
     undoKey k = (KeyEvent Release k)
@@ -138,7 +145,7 @@ fn (KeyEvent s k) = do
 
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
-modifierSet c (Just (Release, curr)) =
+modifierSet c (Release, curr) =
   -- If the key request is unique, just release it
   (concat (deleteRequirement <$> unique))
     -- If the key request isn't unique, then apply the
@@ -152,15 +159,13 @@ modifierSet c (Just (Release, curr)) =
     deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
     deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
+    deleteRequirement (ModRAlt Press) = [KeyEvent Release KeyRightAlt]
     deleteRequirement _ = []
 
     -- nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
 
-modifierSet _ (Just (Press, curr)) =
+modifierSet _ (Press, curr) =
   applyMods <$> mods curr
-
-modifierSet _ Nothing =
-  []
 
 modDeleteDuplicates c = foldr
                 (\a b ->
@@ -173,12 +178,14 @@ modDeleteDuplicates c = foldr
 eqMod (ModShift _) (ModShift _) = True
 eqMod (ModAlt _) (ModAlt _) = True
 eqMod (ModCtrl _) (ModCtrl _) = True
+eqMod (ModRAlt _) (ModRAlt _) = True
 eqMod _ _ = False
 
 
 applyMods (ModShift p) = KeyEvent p KeyLeftShift
 applyMods (ModAlt p) = KeyEvent p KeyLeftAlt
 applyMods (ModCtrl p) = KeyEvent p KeyLeftCtrl
+applyMods (ModRAlt p) = KeyEvent p KeyRightAlt
 
 revSwitch Press = Release
 revSwitch Release = Press
@@ -186,8 +193,9 @@ revSwitch Release = Press
 mapMod f (ModShift p)  = ModShift (f p)
 mapMod f (ModAlt p) = ModAlt (f p)
 mapMod f (ModCtrl p) = ModCtrl (f p)
+mapMod f (ModRAlt p) = ModRAlt (f p)
 
-data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch
+data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
   deriving (Eq, Show)
 
 -- Keycode that's being pressed (input) + way to undo it.
@@ -199,9 +207,9 @@ data MyKeyCommand = MyKeyCommand {
   }
   deriving (Eq, Show)
 
-translationLayer :: [MyModifiersRequested] -> Keycode -> Maybe (MyKeyCommand)
+translationLayer :: [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
 translationLayer mod k =
-  translationLayer' mod k
+  fromMaybe [] $ translationLayer' mod k
 
   where
     translationLayer' mod k@KeyLeftAlt = Just $ keyMod k [ModAlt Press]
@@ -235,20 +243,20 @@ translationLayer mod k =
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
 keyCommand k k' mod =
-  MyKeyCommand
+  [MyKeyCommand
     k
     [KeyEvent Press k']
     [KeyEvent Release k']
-    mod
+    mod]
 
 keyMod k mod =
-  MyKeyCommand
+  [MyKeyCommand
     k
     []
     []
-    mod
+    mod]
 
-altTranslationLayer :: Keycode -> Maybe MyKeyCommand
+altTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyG = Just $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyM = Just $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
@@ -276,13 +284,13 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyP = Just $ keyCommand k KeyEqual [(ModAlt Release)]
-altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release)]
-altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
+altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release), (ModRAlt Press)]
+altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release), (ModRAlt Press)]
 
 altTranslationLayer _ = Nothing
 
-altCtrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
+altCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 altCtrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer _ = Nothing
@@ -292,7 +300,7 @@ altCtrlTranslationLayer _ = Nothing
 --  _      _      _      _      _      _      _      @ret   _      _      _      _      _
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
-ctrlTranslationLayer :: Keycode -> Maybe MyKeyCommand
+ctrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 ctrlTranslationLayer k@KeyEsc = Just $ keyCommand k KeyCapsLock [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModCtrl Release)]
