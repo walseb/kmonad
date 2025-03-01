@@ -294,9 +294,10 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Release)]) -- You can't press + release keys
-altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
-altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
+-- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
+altTranslationLayer k@KeyP = Just $ (keyCommand k KeyE [(ModAlt Release), (ModRAlt Press)])
+altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) 
+altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)])
 
 altTranslationLayer _ = Nothing
 
