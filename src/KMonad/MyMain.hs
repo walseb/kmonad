@@ -294,7 +294,7 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Release)])
+altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press), (ModShift Release)])
 altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
 altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
 
@@ -316,7 +316,6 @@ ctrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyA = Just $ keyCommand k KeyEnter [(ModCtrl Release)]
 ctrlTranslationLayer _ = Nothing
-
 
 
 -- QWERTY -> Carpalx
