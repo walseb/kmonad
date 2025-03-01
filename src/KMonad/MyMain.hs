@@ -294,7 +294,7 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)])
+altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Release)]) -- You can't press + release keys
 altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
 altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
 
