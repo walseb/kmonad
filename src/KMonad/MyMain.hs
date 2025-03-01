@@ -89,10 +89,20 @@ loop = forever $ do
 -- Key release
 updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
 updateKeymap list (KeyEvent Release k) =
-  foldr (\a@(MyKeyCommand k' _ _ _) (b, ev) -> if (any (== k') (rawKey <$> b)) then (b, release a ++ ev) else ((a : b), ev)) ([], []) list
+  foldr
+    (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
+      if k' == k
+      then (b, (modifiers trueContext a) ++ (release a) ++ evs)
+      -- Put back if no match
+      else ((a : b), evs))
+    ([], [])
+    list
   -- construct <$> relevantEntries
 
   where
+    trueContext :: [MyKeyCommand]
+    trueContext = filter (((/=) k) . rawKey) list
+
     -- relevantEntries :: [MyKeyCommand]
     -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
 
@@ -100,13 +110,13 @@ updateKeymap list (KeyEvent Release k) =
     --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
     --     release entr)]
 
-    mods c entr = modifierSet c (Release, entr)
+    modifiers c entr = modifierSet c (Release, entr)
 
 
 -- Key press
 updateKeymap list (KeyEvent Press k) =
   -- Tr.trace ("New entry: " ++ (show newEntry)) $
-  foldr (\new (old, cmd) -> (new ++ old, (modifiers old new) ++ (activation new) ++ cmd)) (list, []) newEntries
+  foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
     where
       newEntries = translationLayer (concat (mods <$> list)) k
       modifiers c new = modifierSet c (Press, new)
@@ -284,9 +294,9 @@ altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Rele
 altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
-altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
-altTranslationLayer k@KeyComma = Just $ keyCommand k KeyEqual [(ModAlt Release), (ModRAlt Press)]
-altTranslationLayer k@KeyDot = Just $ keyCommand k KeyEqual [(ModAlt Release), (ModRAlt Press)]
+altTranslationLayer k@KeyP = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Release)])
+altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
+altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)]) ++ (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
 
 altTranslationLayer _ = Nothing
 
@@ -342,7 +352,7 @@ carpalxTranslationLayer Key9 = Key9
 carpalxTranslationLayer Key0 = Key0
 carpalxTranslationLayer KeyMinus = KeyMinus
 carpalxTranslationLayer KeyEqual = KeyEqual
-carpalxTranslationLayer KeyBackspace = KeyBackspace
+carpalxTranslationLayer KeyBackspace = KeyGrave -- Ignore key
 
 
 -- Top row
