@@ -87,8 +87,8 @@ loop = forever $ do
 
 -- Here we know that the event has occurred
 -- Key release
-updateKeymap :: [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
-updateKeymap list (KeyEvent Release k) =
+updateKeymap :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
+updateKeymap _ list (KeyEvent Release k) =
   foldr
     (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
       if k' == k
@@ -114,11 +114,11 @@ updateKeymap list (KeyEvent Release k) =
 
 
 -- Key press
-updateKeymap list (KeyEvent Press k) =
+updateKeymap layer list (KeyEvent Press k) =
   -- Tr.trace ("New entry: " ++ (show newEntry)) $
   foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
     where
-      newEntries = translationLayer (concat (mods <$> list)) k
+      newEntries = translationLayer layer (concat (mods <$> list)) k
       modifiers c new = modifierSet c (Press, new)
 
 keyMap :: MVar [MyKeyCommand]
@@ -129,6 +129,9 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Alt needs to engage shift whenever relevant
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
+serverCmdToLayer :: Maybe ServerCmds -> [Layer]
+serverCmdToLayer a = undefined 
+
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
 fn (KeyEvent s k) = do
@@ -136,12 +139,12 @@ fn (KeyEvent s k) = do
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
-  cmd <- runServerPull
+  cmd <- serverCmdToLayer <$> runServerPull
   m <- takeMVar keyMap
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   -- let (m', curr, outKeys) = updateKeymap m ke
-  let (m', outKeys) = updateKeymap m ke
+  let (m', outKeys) = updateKeymap cmd m ke
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
@@ -150,6 +153,7 @@ fn (KeyEvent s k) = do
   pure $ outKeys
 
   where
+    maybeToList = maybe [] (\a -> [a])
     undoKey k = (KeyEvent Release k)
     doKey k = (KeyEvent Press k)
 
@@ -217,93 +221,104 @@ data MyKeyCommand = MyKeyCommand {
   }
   deriving (Eq, Show)
 
-translationLayer :: [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
-translationLayer mod k =
-  fromMaybe [] $ translationLayer' mod k
+data Layer =
+  Emacs
+  | EXWM
+  | EXWMFirefox
+
+translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
+translationLayer layer mod k =
+  fromMaybe [] $ translationLayer' layer mod k
 
   where
-    translationLayer' mod k@KeyLeftAlt = Just $ keyMod k [ModAlt Press]
-    translationLayer' mod k@KeyRightShift = Just $ keyMod k [ModShift Press]
-    translationLayer' mod k@KeyLeftShift = Just $ keyMod k [ModShift Press]
-    translationLayer' mod k@KeyCapsLock = Just $ keyMod k [ModCtrl Press]
+    findAlt (ModAlt Press) = True
+    findAlt _ = False
+    findCtrl (ModCtrl Press) = True
+    findCtrl _ = False
 
-    translationLayer' mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
+    translationLayer' _layer mod k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
+    translationLayer' _layer mod k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer mod k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+
+    translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
-      where
-        findAlt (ModAlt Press) = True
-        findAlt _ = False
-        findCtrl (ModCtrl Press) = True
-        findCtrl _ = False
 
-    translationLayer' mod k | any findAlt mod && isJust (altTranslationLayer k) =
+    translationLayer' _layer mod k | any findAlt mod && isJust (altTranslationLayer k) =
       altTranslationLayer k
-      where
-        findAlt (ModAlt Press) = True
-        findAlt _ = False
 
-    translationLayer' mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
+    translationLayer' _layer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
-      where
-        findCtrl (ModCtrl Press) = True
-        findCtrl _ = False
 
-    translationLayer' mod k = Just $ keyCommand k k []
+    -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
+    --   altTranslationLayer k
+
+    translationLayer' _layer mod k = Just $ list $ keyCommand k k []
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
 keyCommand k k' mod =
-  [MyKeyCommand
+  MyKeyCommand
     k
     [KeyEvent Press k']
     [KeyEvent Release k']
-    mod]
+    mod
+
+keyCommandTap k k' mod =
+  MyKeyCommand
+    k
+    [(KeyEvent Press k'), (KeyEvent Release k')]
+    []
+    mod
 
 keyMod k mod =
-  [MyKeyCommand
+  MyKeyCommand
     k
     []
     []
-    mod]
+    mod
+
+list a = [a]
 
 altTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-altTranslationLayer k@KeyQ = Just $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyG = Just $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyM = Just $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyL = Just $ keyCommand k Key4 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyW = Just $ keyCommand k Key5 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyY = Just $ keyCommand k Key8 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyF = Just $ keyCommand k Key9 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyU = Just $ keyCommand k Key0 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyB = Just $ keyCommand k Key7 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeySemicolon = Just $ keyCommand k Key6 [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyLeftBrace = Just $ keyCommand k KeyMinus [(ModShift Press), (ModAlt Release)]
-altTranslationLayer k@KeyRightBrace = Just $ keyCommand k KeyEqual [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyQ = Just $ list $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyG = Just $ list $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyM = Just $ list $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyL = Just $ list $ keyCommand k Key4 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyW = Just $ list $ keyCommand k Key5 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyY = Just $ list $ keyCommand k Key8 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyF = Just $ list $ keyCommand k Key9 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyU = Just $ list $ keyCommand k Key0 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyB = Just $ list $ keyCommand k Key7 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeySemicolon = Just $ list $ keyCommand k Key6 [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyLeftBrace = Just $ list $ keyCommand k KeyMinus [(ModShift Press), (ModAlt Release)]
+altTranslationLayer k@KeyRightBrace = Just $ list $ keyCommand k KeyEqual [(ModShift Press), (ModAlt Release)]
 
-altTranslationLayer k@KeyD = Just $ keyCommand k Key1 [(ModAlt Release)]
-altTranslationLayer k@KeyS = Just $ keyCommand k Key2 [(ModAlt Release)]
-altTranslationLayer k@KeyT = Just $ keyCommand k Key3 [(ModAlt Release)]
-altTranslationLayer k@KeyN = Just $ keyCommand k Key4 [(ModAlt Release)]
-altTranslationLayer k@KeyR = Just $ keyCommand k Key5 [(ModAlt Release)]
-altTranslationLayer k@KeyI = Just $ keyCommand k Key6 [(ModAlt Release)]
-altTranslationLayer k@KeyA = Just $ keyCommand k Key7 [(ModAlt Release)]
-altTranslationLayer k@KeyE = Just $ keyCommand k Key8 [(ModAlt Release)]
-altTranslationLayer k@KeyO = Just $ keyCommand k Key9 [(ModAlt Release)]
-altTranslationLayer k@KeyH = Just $ keyCommand k Key0 [(ModAlt Release)]
-altTranslationLayer k@KeyApostrophe = Just $ keyCommand k KeyMinus [(ModAlt Release)]
-altTranslationLayer k@KeyEnter = Just $ keyCommand k KeyEqual [(ModAlt Release)]
+altTranslationLayer k@KeyD = Just $ list $ keyCommand k Key1 [(ModAlt Release)]
+altTranslationLayer k@KeyS = Just $ list $ keyCommand k Key2 [(ModAlt Release)]
+altTranslationLayer k@KeyT = Just $ list $ keyCommand k Key3 [(ModAlt Release)]
+altTranslationLayer k@KeyN = Just $ list $ keyCommand k Key4 [(ModAlt Release)]
+altTranslationLayer k@KeyR = Just $ list $ keyCommand k Key5 [(ModAlt Release)]
+altTranslationLayer k@KeyI = Just $ list $ keyCommand k Key6 [(ModAlt Release)]
+altTranslationLayer k@KeyA = Just $ list $ keyCommand k Key7 [(ModAlt Release)]
+altTranslationLayer k@KeyE = Just $ list $ keyCommand k Key8 [(ModAlt Release)]
+altTranslationLayer k@KeyO = Just $ list $ keyCommand k Key9 [(ModAlt Release)]
+altTranslationLayer k@KeyH = Just $ list $ keyCommand k Key0 [(ModAlt Release)]
+altTranslationLayer k@KeyApostrophe = Just $ list $ keyCommand k KeyMinus [(ModAlt Release)]
+altTranslationLayer k@KeyEnter = Just $ list $ keyCommand k KeyEqual [(ModAlt Release)]
 
 -- åäö
 -- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
-altTranslationLayer k@KeyP = Just $ (keyCommand k KeyE [(ModAlt Release), (ModRAlt Press)])
-altTranslationLayer k@KeyComma = Just $ (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]) 
-altTranslationLayer k@KeyDot = Just $ (keyCommand k KeyO [(ModAlt Release), (ModRAlt Press)])
+altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModShift Release), (ModRAlt Press)])]
+altTranslationLayer k@KeyComma = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
+altTranslationLayer k@KeyDot = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 
 altTranslationLayer _ = Nothing
 
 altCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-altCtrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
-altCtrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
+altCtrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
+altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
@@ -312,10 +327,10 @@ altCtrlTranslationLayer _ = Nothing
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
 ctrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-ctrlTranslationLayer k@KeyEsc = Just $ keyCommand k KeyCapsLock [(ModCtrl Release)]
-ctrlTranslationLayer k@KeyL = Just $ keyCommand k KeyDelete [(ModCtrl Release)]
-ctrlTranslationLayer k@KeyF = Just $ keyCommand k KeyBackspace [(ModCtrl Release)]
-ctrlTranslationLayer k@KeyA = Just $ keyCommand k KeyEnter [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyEsc = Just $ list $ keyCommand k KeyCapsLock [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyEnter [(ModCtrl Release)]
 ctrlTranslationLayer _ = Nothing
 
 
