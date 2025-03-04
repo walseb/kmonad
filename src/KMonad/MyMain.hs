@@ -327,7 +327,7 @@ altCtrlTranslationLayer _ = Nothing
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
 ctrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-ctrlTranslationLayer k@KeyEsc = Just $ list $ keyCommand k KeyCapsLock [(ModCtrl Release)]
+ctrlTranslationLayer k@KeyGrave = Just $ list $ keyCommand k KeyCapsLock [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyEnter [(ModCtrl Release)]
