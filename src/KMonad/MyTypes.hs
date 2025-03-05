@@ -5,7 +5,7 @@ import KMonad.Keyboard.Types
 import KMonad.Prelude
 import KMonad.Model.Action
 
-data ServerCmds =
+data ServerCmd =
   ServerKey KeyEvent
   | ServerLayer Text
   | ServerNull

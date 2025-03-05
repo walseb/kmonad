@@ -9,6 +9,11 @@ import KMonad.MyTypes
 import qualified KMonad.Prelude.Imports as Tr
 import qualified KMonad.Prelude.Imports as KPrelude
 
+data ServerCmd =
+  ServerKey KeyEvent
+  | ServerLayer Text
+  | ServerNull
+  deriving (Show) 
 
 parseQuotedString :: Parser Text
 parseQuotedString = do
@@ -16,7 +21,7 @@ parseQuotedString = do
   str <- manyTill L.charLiteral (char '"')
   return (pack str)
 
-cmds :: Parser ServerCmds
+cmds :: Parser [ServerCmd]
 cmds = -- ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
    -- <|>
    ("SetLayer " *> (ServerLayer <$> parseQuotedString))

@@ -64,7 +64,7 @@ sendValue sk x =
 -- Command Handlers
 ------------------------------------------------------------------------------
 
--- shutdown :: MVar ServerCmds -> Socket -> IO ()
+-- shutdown :: MVar ServerCmd -> Socket -> IO ()
 -- shutdown shutdownMvar sk = do
 --   pure $ ServerEmit
 
@@ -87,7 +87,7 @@ def str sk = sendValue sk ("Unknown command: " ++ str)
 -- inject     :: KeyEvent -> m ()
 -- -- | Run a shell-command
 -- shellCmd   :: Text -> m ()
-commands :: MVar ServerCmds -> String -> IO (Fold IO Socket ())
+commands :: MVar ServerCmd -> String -> IO (Fold IO Socket ())
 commands uMvar cmd = do
   return (Fold.drainMapM (\_sock -> update cmd))
   where
@@ -107,14 +107,14 @@ commands uMvar cmd = do
 demuxKvToMap :: (Monad m, Ord k) => (k -> m (Fold m a b)) -> Fold m (k, a) (Map k b)
 demuxKvToMap f = Fold.demuxToMap fst (\(k, _) -> fmap (Fold.lmap snd) (f k))
 
-demux :: MVar ServerCmds -> Fold IO (String, Socket) ()
+demux :: MVar ServerCmd -> Fold IO (String, Socket) ()
 demux uMvar = void (demuxKvToMap (commands uMvar))
 
 ------------------------------------------------------------------------------
 -- Parse and handle commands on a socket
 ------------------------------------------------------------------------------
 
-handler :: MVar ServerCmds -> Socket -> IO ()
+handler :: MVar ServerCmd -> Socket -> IO ()
 handler uMvar sk = do
     Socket.read sk        -- Stream IO Word8
       & Unicode.decodeLatin1  -- Stream IO Char
@@ -133,18 +133,18 @@ handler uMvar sk = do
 -- Accept connecttions and handle connected sockets
 ------------------------------------------------------------------------------
 
-server :: MVar ServerCmds -> IO ()
+server :: MVar ServerCmd -> IO ()
 server uMvar =
       TCP.accept 9199                                -- Stream IO Socket
     & Stream.parMapM Prelude.id (Socket.forSocketM (handler uMvar))  -- Stream IO ()
     & Stream.fold Fold.drain                         -- IO ()
 
-serverMVar :: MVar ServerCmds
+serverMVar :: MVar [ServerCmd]
 serverMVar = unsafePerformIO $ KPrelude.newEmptyMVar
 {-# NOINLINE serverMVar #-}
 
 
-launchServer :: MVar ServerCmds -> IO ()
+launchServer :: MVar ServerCmd -> IO ()
 launchServer mvar = do
   () <- KPrelude.catch
               (server mvar)

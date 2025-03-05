@@ -129,7 +129,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Alt needs to engage shift whenever relevant
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
-serverCmdToLayer :: Maybe ServerCmds -> [Layer]
+serverCmdToLayer :: Maybe ServerCmd -> [Layer]
 serverCmdToLayer a = undefined 
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
@@ -433,7 +433,7 @@ carpalxTranslationLayer k = k
 
 
 
-runServerPull :: IO (Maybe ServerCmds)
+runServerPull :: IO (Maybe [ServerCmd])
 runServerPull = do
   tryTakeMVar serverMVar
 
