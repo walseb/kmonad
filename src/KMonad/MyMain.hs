@@ -152,7 +152,7 @@ fn (KeyEvent s k) = do
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   -- let (m', curr, outKeys) = updateKeymap m ke
-  let (m', outKeys) = updateKeymap (catMaybes (parseLayer <$> cmd)) m ke
+  let (m', outKeys) = updateKeymap cmd m ke
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
@@ -476,16 +476,20 @@ carpalxTranslationLayer k = k
 
 
 
-lastServerResponse :: MVar [ServerCmd]
+lastServerResponse :: MVar [Layer]
 lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar [Emacs]
 {-# NOINLINE lastServerResponse #-}
 
-runServerPull :: IO [ServerCmd]
+runServerPull :: IO [Layer]
 runServerPull = do
   last <- takeMVar lastServerResponse
-  out <- fromMaybe last <$> tryReadMVar serverMVar
-  putMVar lastServerResponse out
-  pure out
+  resp <- tryReadMVar serverMVar
+  let
+    resp' :: Maybe [Layer]
+    resp' = catMaybes <$> ((fmap . fmap) parseLayer resp)
+    out' = fromMaybe last resp'
+  putMVar lastServerResponse out'
+  pure out'
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e [KeyEvent]
 pull' s = awaitKey s >>=

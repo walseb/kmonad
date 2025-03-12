@@ -104,21 +104,7 @@ initAppEnv cfg = do
     e <- atomically . takeTMVar $ otv
     emitKey snk e
     -- If delay is specified, wait for it
-<<<<<<< HEAD
     for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
-||||||| parent of aa9d006 (Bump)
-    for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
-
-  launch_ "emitter_proc_rpc" $ do
-    liftIO $ launchServer serverMVar
-
-=======
-    -- for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
-
-  launch_ "emitter_proc_rpc" $ do
-    liftIO $ launchServer serverMVar
-
->>>>>>> aa9d006 (Bump)
   -- emit e = view keySink >>= flip emitKey e
   pure $ AppEnv
     { _keAppCfg  = cfg
