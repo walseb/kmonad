@@ -14,6 +14,7 @@ and then resume processing and return all events that were caught while paused.
 -}
 module KMonad.Model.Sluice
   ( Sluice
+  , step
   , mkSluice
   , block
   , unblock
