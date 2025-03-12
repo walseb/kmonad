@@ -375,6 +375,7 @@ ctrlTranslationLayer _ = Nothing
 hostnameTranslationLayer :: String -> Keycode -> Keycode
 hostnameTranslationLayer "thinkpad-t480" KeyBackslash = KeyEnter
 hostnameTranslationLayer "thinkpad-t480" KeyEnter = KeyBackslash
+hostnameTranslationLayer _ a = a
 
 -- QWERTY -> Carpalx
 carpalxTranslationLayer :: Keycode -> Keycode
