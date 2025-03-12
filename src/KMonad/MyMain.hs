@@ -132,7 +132,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
 parseLayer :: ServerCmd -> Maybe Layer
-parseLayer (ServerLayer "Emacs") = Just $ Emacs
+parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
 parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
 parseLayer _ = Nothing
@@ -477,7 +477,7 @@ carpalxTranslationLayer k = k
 
 
 lastServerResponse :: MVar [ServerCmd]
-lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar []
+lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar ["emacs"]
 {-# NOINLINE lastServerResponse #-}
 
 runServerPull :: IO [ServerCmd]
