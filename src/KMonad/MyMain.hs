@@ -18,6 +18,7 @@ import qualified KMonad.Model.Dispatch as Dp
 import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
+import LibMy.System
 
 import qualified Debug.Trace as Tr
 
@@ -130,7 +131,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
 serverCmdToLayer :: Maybe ServerCmd -> [Layer]
-serverCmdToLayer a = undefined 
+serverCmdToLayer a = undefined
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
@@ -226,6 +227,10 @@ data Layer =
   | EXWM
   | EXWMFirefox
 
+currHostname :: String
+currHostname = unsafePerformIO hostname
+{-# NOINLINE currHostname #-}
+
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
 translationLayer layer mod k =
   fromMaybe [] $ translationLayer' layer mod k
@@ -236,10 +241,20 @@ translationLayer layer mod k =
     findCtrl (ModCtrl Press) = True
     findCtrl _ = False
 
+    findLayerEXWM EXWM = True
+    findLayerEXWM _ = False
+
+    findLayerEmacs Emacs = True
+    findLayerEmacs _ = False
+
     translationLayer' _layer mod k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer mod k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer mod k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+
+
+    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
+      exwmCtrlTranslationLayer k
 
     translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
@@ -249,6 +264,9 @@ translationLayer layer mod k =
 
     translationLayer' _layer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
+
+    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (emacsTranslationLayer k) =
+      emacsTranslationLayer k
 
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
@@ -320,6 +338,17 @@ altCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 altCtrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer _ = Nothing
+
+-- Key pressed without any modifier
+emacsTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+emacsTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
+emacsTranslationLayer _ = Nothing
+
+exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+-- C-m -> C-a
+exwmCtrlTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyA [(ModCtrl Press)]
+exwmCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
+exwmCtrlTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
