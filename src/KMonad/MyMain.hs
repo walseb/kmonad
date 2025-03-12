@@ -139,7 +139,10 @@ parseLayer _ = Nothing
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
 fn (KeyEvent s k) = do
-  let ke = KeyEvent s (carpalxTranslationLayer k)
+  let ke =
+        KeyEvent
+        s
+        ((hostnameTranslationLayer currHostname . carpalxTranslationLayer) k)
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
@@ -368,6 +371,10 @@ ctrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModCtrl 
 ctrlTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyEnter [(ModCtrl Release)]
 ctrlTranslationLayer _ = Nothing
 
+
+hostnameTranslationLayer :: String -> Keycode -> Keycode
+hostnameTranslationLayer "thinkpad-t480" KeyBackslash = KeyEnter
+hostnameTranslationLayer "thinkpad-t480" KeyEnter = KeyBackslash
 
 -- QWERTY -> Carpalx
 carpalxTranslationLayer :: Keycode -> Keycode
