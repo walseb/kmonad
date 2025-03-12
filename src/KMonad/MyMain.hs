@@ -237,7 +237,7 @@ data Layer =
 
 
 currHostname :: String
-currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "" )
+currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "/run/current-system/sw/bin/hostname" [] "" )
 {-# NOINLINE currHostname #-}
 
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
