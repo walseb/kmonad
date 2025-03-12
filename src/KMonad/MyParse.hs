@@ -9,12 +9,6 @@ import KMonad.MyTypes
 import qualified KMonad.Prelude.Imports as Tr
 import qualified KMonad.Prelude.Imports as KPrelude
 
-data ServerCmd =
-  ServerKey KeyEvent
-  | ServerLayer Text
-  | ServerNull
-  deriving (Show) 
-
 parseQuotedString :: Parser Text
 parseQuotedString = do
   _ <- char '"'
@@ -22,10 +16,12 @@ parseQuotedString = do
   return (pack str)
 
 cmds :: Parser [ServerCmd]
-cmds = -- ("ShellCmd "  *> (ServerShellCmd <$> parseQuotedString))
-   -- <|>
-   ("SetLayer " *> (ServerLayer <$> parseQuotedString))
+cmds = sepBy parseSetLayer (char ',' *> optional space)
+
+-- Syntax: l "layer1", l "layer2", 
+parseSetLayer :: Parser ServerCmd
+parseSetLayer = string "l " *> (ServerLayer <$> parseQuotedString)
 
 parseServerCmd t = case runParser cmds "" t  of
-  Left  e -> Tr.trace (KPrelude.pack ("Parsinq error: " ++ (show e))) ServerNull
+  Left  e -> Tr.trace (KPrelude.pack ("Parsinq error: " ++ (show e))) []
   Right x -> Tr.trace (KPrelude.pack ("Parsed: " ++ (show x))) x

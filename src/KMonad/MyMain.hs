@@ -130,8 +130,11 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Alt needs to engage shift whenever relevant
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
-serverCmdToLayer :: Maybe ServerCmd -> [Layer]
-serverCmdToLayer a = undefined
+parseLayer :: ServerCmd -> Maybe Layer
+parseLayer (ServerLayer "Emacs") = Just $ Emacs
+parseLayer (ServerLayer "EXWM") = Just $ EXWM
+parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
+parseLayer _ = Nothing
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
@@ -140,12 +143,12 @@ fn (KeyEvent s k) = do
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
-  cmd <- serverCmdToLayer <$> runServerPull
+  cmd <- runServerPull
   m <- takeMVar keyMap
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   -- let (m', curr, outKeys) = updateKeymap m ke
-  let (m', outKeys) = updateKeymap cmd m ke
+  let (m', outKeys) = updateKeymap (catMaybes (parseLayer <$> cmd)) m ke
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
@@ -226,6 +229,9 @@ data Layer =
   Emacs
   | EXWM
   | EXWMFirefox
+  deriving (Eq, Show)
+
+
 
 currHostname :: String
 currHostname = unsafePerformIO hostname
@@ -460,11 +466,9 @@ carpalxTranslationLayer KeySlash = KeySlash
 carpalxTranslationLayer k = k
 
 
-
-
-runServerPull :: IO (Maybe [ServerCmd])
-runServerPull = do
-  tryTakeMVar serverMVar
+runServerPull :: IO [ServerCmd]
+runServerPull =
+  fromMaybe [] <$> tryReadMVar serverMVar
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e [KeyEvent]
 pull' s = awaitKey s >>=
