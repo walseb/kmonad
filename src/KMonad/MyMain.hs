@@ -275,8 +275,11 @@ translationLayer layer mod k =
     translationLayer' _layer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
 
-    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (emacsTranslationLayer k) =
-      emacsTranslationLayer k
+    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
+      rootTranslationLayer k
+
+    translationLayer' layer mod k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
+      rootCtrlTranslationLayer k
 
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
@@ -350,10 +353,13 @@ altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt R
 altCtrlTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
-emacsTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-emacsTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
-emacsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
-emacsTranslationLayer _ = Nothing
+rootTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
+rootTranslationLayer _ = Nothing
+
+rootCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
+rootCtrlTranslationLayer _ = Nothing
 
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 -- C-m -> C-a
