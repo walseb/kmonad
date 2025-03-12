@@ -262,10 +262,6 @@ translationLayer layer mod k =
     translationLayer' _layer mod k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
 
-
-    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
-      exwmCtrlTranslationLayer k
-
     translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
 
@@ -280,6 +276,9 @@ translationLayer layer mod k =
 
     translationLayer' layer mod k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
       rootCtrlTranslationLayer k
+
+    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
+      exwmCtrlTranslationLayer k
 
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
