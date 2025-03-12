@@ -20,6 +20,12 @@ let
         description = "Path to the keyboard's device file.";
       };
 
+      hostname = lib.mkOption {
+        type = lib.types.str;
+        example = "thinkpad-t480";
+        description = "Hostname of device";
+      };
+
       extraGroups = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
@@ -130,6 +136,7 @@ let
       value = {
         description = "KMonad for ${keyboard.device}";
         script = lib.escapeShellArgs cmd;
+        serviceConfig.Environment=[("HOSTNAME=${keyboard.hostname}")];
         serviceConfig.Restart = "always";
         serviceConfig.User = if in-initrd then null else "kmonad";
         serviceConfig.SupplementaryGroups = if in-initrd then null else groups;
