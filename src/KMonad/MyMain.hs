@@ -477,7 +477,7 @@ carpalxTranslationLayer k = k
 
 
 lastServerResponse :: MVar [ServerCmd]
-lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar ["emacs"]
+lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar [Emacs]
 {-# NOINLINE lastServerResponse #-}
 
 runServerPull :: IO [ServerCmd]
