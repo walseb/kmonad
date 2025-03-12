@@ -234,10 +234,9 @@ data Layer =
   | EXWMFirefox
   deriving (Eq, Show)
 
-
-
 currHostname :: String
-currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "/run/current-system/sw/bin/hostname" [] "" )
+-- currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "/run/current-system/sw/bin/hostname" [] "")
+currHostname = "thinkpad-t480"
 {-# NOINLINE currHostname #-}
 
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
