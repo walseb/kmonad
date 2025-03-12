@@ -352,12 +352,12 @@ altCtrlTranslationLayer _ = Nothing
 -- Key pressed without any modifier
 emacsTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 emacsTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
+emacsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
 emacsTranslationLayer _ = Nothing
 
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 -- C-m -> C-a
 exwmCtrlTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyA [(ModCtrl Press)]
-exwmCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
 exwmCtrlTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
