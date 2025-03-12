@@ -10,6 +10,7 @@ import KMonad.Keyboard
 import KMonad.Util
 import KMonad.Model
 
+import System.Environment
 
 import KMonad.Keyboard.Keycode
 import KMonad.Keyboard.Types
@@ -235,7 +236,8 @@ data Layer =
   deriving (Eq, Show)
 
 currHostname :: String
-currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "")
+currHostname = System.IO.Unsafe.unsafePerformIO (getEnv "MY_USER")
+-- currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "")
 -- currHostname = "thinkpad-t480"
 {-# NOINLINE currHostname #-}
 
