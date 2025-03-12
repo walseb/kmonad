@@ -466,9 +466,17 @@ carpalxTranslationLayer KeySlash = KeySlash
 carpalxTranslationLayer k = k
 
 
+
+lastServerResponse :: MVar [ServerCmd]
+lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar []
+{-# NOINLINE lastServerResponse #-}
+
 runServerPull :: IO [ServerCmd]
-runServerPull =
-  fromMaybe [] <$> tryReadMVar serverMVar
+runServerPull = do
+  last <- takeMVar lastServerResponse
+  out <- fromMaybe last <$> tryReadMVar serverMVar
+  putMVar lastServerResponse out
+  pure out
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e [KeyEvent]
 pull' s = awaitKey s >>=
