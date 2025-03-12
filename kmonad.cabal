@@ -61,6 +61,7 @@ library
     , network
     , random
     , vector
+    , process
   default-extensions:
       ConstraintKinds
       DeriveFunctor

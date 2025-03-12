@@ -18,7 +18,7 @@ import qualified KMonad.Model.Dispatch as Dp
 import qualified KMonad.Model.Hooks    as Hs
 import qualified KMonad.Model.Sluice   as Sl
 import qualified KMonad.Model.Keymap   as Km
-import LibMy.System
+import System.Process
 
 import qualified Debug.Trace as Tr
 
@@ -234,7 +234,7 @@ data Layer =
 
 
 currHostname :: String
-currHostname = unsafePerformIO hostname
+currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "" )
 {-# NOINLINE currHostname #-}
 
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
