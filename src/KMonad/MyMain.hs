@@ -236,7 +236,7 @@ data Layer =
   deriving (Eq, Show)
 
 currHostname :: String
-currHostname = System.IO.Unsafe.unsafePerformIO (getEnv "MY_USER")
+currHostname = System.IO.Unsafe.unsafePerformIO (getEnv "HOSTNAME")
 -- currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "")
 -- currHostname = "thinkpad-t480"
 {-# NOINLINE currHostname #-}
