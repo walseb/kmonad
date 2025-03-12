@@ -142,7 +142,7 @@ fn (KeyEvent s k) = do
   let ke =
         KeyEvent
         s
-        ((hostnameTranslationLayer currHostname . carpalxTranslationLayer) k)
+        ((carpalxTranslationLayer . hostnameTranslationLayer currHostname) k)
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
