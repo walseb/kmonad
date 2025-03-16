@@ -87,10 +87,14 @@ loop = forever $ do
   snk <- (view keySink)
   sequence $ (emitKey snk) <$> ev
 
--- Here we know that the event has occurred
--- Key release
 updateKeymap :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
-updateKeymap _ list (KeyEvent Release k) =
+updateKeymap l list (KeyEvent s k) = 
+  let ke = KeyEvent s ((carpalxTranslationLayer l . hostnameTranslationLayer l currHostname) k)
+  in updateKeymap' l list ke
+
+-- Key release
+updateKeymap' :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
+updateKeymap' _ list (KeyEvent Release k) =
   foldr
     (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
       if k' == k
@@ -116,7 +120,7 @@ updateKeymap _ list (KeyEvent Release k) =
 
 
 -- Key press
-updateKeymap layer list (KeyEvent Press k) =
+updateKeymap' layer list (KeyEvent Press k) =
   -- Tr.trace ("New entry: " ++ (show newEntry)) $
   foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
     where
@@ -139,11 +143,7 @@ parseLayer _ = Nothing
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
-fn (KeyEvent s k) = do
-  let ke =
-        KeyEvent
-        s
-        ((carpalxTranslationLayer . hostnameTranslationLayer currHostname) k)
+fn ev = do
   -- "recieved"
 
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
@@ -151,8 +151,8 @@ fn (KeyEvent s k) = do
   m <- takeMVar keyMap
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
-  -- let (m', curr, outKeys) = updateKeymap m ke
-  let (m', outKeys) = updateKeymap (catMaybes (parseLayer <$> cmd)) m ke
+  -- let (m', curr, outKeys) = updateKeymap' m ke
+  let (m', outKeys) = updateKeymap' (catMaybes (parseLayer <$> cmd)) m ev
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
@@ -232,6 +232,8 @@ data MyKeyCommand = MyKeyCommand {
 data Layer =
   Emacs
   | EXWM
+  | Raw
+  | Steno
   | EXWMFirefox
   deriving (Eq, Show)
 
@@ -240,6 +242,10 @@ currHostname = System.IO.Unsafe.unsafePerformIO (getEnv "HOSTNAME")
 -- currHostname = System.IO.Unsafe.unsafePerformIO (readProcess "hostname" [] "")
 -- currHostname = "thinkpad-t480"
 {-# NOINLINE currHostname #-}
+
+findLayerRawOrSteno Steno = True
+findLayerRawOrSteno Raw = True
+findLayerRawOrSteno _ = False
 
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
 translationLayer layer mod k =
@@ -257,11 +263,14 @@ translationLayer layer mod k =
     findLayerEmacs Emacs = True
     findLayerEmacs _ = False
 
+
     translationLayer' _layer mod k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer mod k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer mod k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
 
+    -- Shortcircut if in steno
+    translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
     translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
       exwmCtrlTranslationLayer k
@@ -281,7 +290,7 @@ translationLayer layer mod k =
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
 
-    translationLayer' _layer mod k = Just $ list $ keyCommand k k []
+    translationLayer' _layer _ k = Just $ list $ keyCommand k k []
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -357,7 +366,6 @@ emacsTranslationLayer _ = Nothing
 
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 -- C-m -> C-a
-exwmCtrlTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyA [(ModCtrl Press)]
 exwmCtrlTranslationLayer _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
@@ -370,97 +378,99 @@ ctrlTranslationLayer k@KeyGrave = Just $ list $ keyCommand k KeyCapsLock [(ModCt
 ctrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyEnter [(ModCtrl Release)]
+-- Might as well handle this here as C-a is rebound
+ctrlTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyA [(ModCtrl Press)]
 ctrlTranslationLayer _ = Nothing
 
-
-hostnameTranslationLayer :: String -> Keycode -> Keycode
-hostnameTranslationLayer "thinkpad-t480" KeyBackslash = KeyEnter
-hostnameTranslationLayer "thinkpad-t480" KeyEnter = KeyBackslash
-hostnameTranslationLayer _ a = a
+hostnameTranslationLayer :: [Layer] -> String -> Keycode -> Keycode
+hostnameTranslationLayer _ "thinkpad-t480" KeyBackslash = KeyEnter
+hostnameTranslationLayer _ "thinkpad-t480" KeyEnter = KeyBackslash
+hostnameTranslationLayer _ _ a = a
 
 -- QWERTY -> Carpalx
-carpalxTranslationLayer :: Keycode -> Keycode
-carpalxTranslationLayer KeyEsc = KeyEsc
-carpalxTranslationLayer KeyHome = KeyHome
-carpalxTranslationLayer KeyEnd = KeyEnd
-carpalxTranslationLayer KeyInsert = KeyInsert
-carpalxTranslationLayer KeyF1 = KeyF1
-carpalxTranslationLayer KeyF2 = KeyF2
-carpalxTranslationLayer KeyF3 = KeyF3
-carpalxTranslationLayer KeyF4 = KeyF4
-carpalxTranslationLayer KeyF5 = KeyF5
-carpalxTranslationLayer KeyF6 = KeyF6
-carpalxTranslationLayer KeyF7 = KeyF7
-carpalxTranslationLayer KeyF8 = KeyF8
-carpalxTranslationLayer KeyF9 = KeyF9
-carpalxTranslationLayer KeyF10 = KeyF10
+carpalxTranslationLayer :: [Layer] -> Keycode -> Keycode
+carpalxTranslationLayer l k | any findLayerRawOrSteno l = k
+carpalxTranslationLayer _ KeyEsc = KeyEsc
+carpalxTranslationLayer _ KeyHome = KeyHome
+carpalxTranslationLayer _ KeyEnd = KeyEnd
+carpalxTranslationLayer _ KeyInsert = KeyInsert
+carpalxTranslationLayer _ KeyF1 = KeyF1
+carpalxTranslationLayer _ KeyF2 = KeyF2
+carpalxTranslationLayer _ KeyF3 = KeyF3
+carpalxTranslationLayer _ KeyF4 = KeyF4
+carpalxTranslationLayer _ KeyF5 = KeyF5
+carpalxTranslationLayer _ KeyF6 = KeyF6
+carpalxTranslationLayer _ KeyF7 = KeyF7
+carpalxTranslationLayer _ KeyF8 = KeyF8
+carpalxTranslationLayer _ KeyF9 = KeyF9
+carpalxTranslationLayer _ KeyF10 = KeyF10
 
 -- grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
 -- ->
 -- grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-carpalxTranslationLayer KeyGrave = KeyGrave
-carpalxTranslationLayer Key1 = Key1
-carpalxTranslationLayer Key2 = Key2
-carpalxTranslationLayer Key3 = Key3
-carpalxTranslationLayer Key4 = Key4
-carpalxTranslationLayer Key5 = Key5
-carpalxTranslationLayer Key6 = Key6
-carpalxTranslationLayer Key7 = Key7
-carpalxTranslationLayer Key8 = Key8
-carpalxTranslationLayer Key9 = Key9
-carpalxTranslationLayer Key0 = Key0
-carpalxTranslationLayer KeyMinus = KeyMinus
-carpalxTranslationLayer KeyEqual = KeyEqual
-carpalxTranslationLayer KeyBackspace = KeyGrave -- Ignore key
+carpalxTranslationLayer _ KeyGrave = KeyGrave
+carpalxTranslationLayer _ Key1 = Key1
+carpalxTranslationLayer _ Key2 = Key2
+carpalxTranslationLayer _ Key3 = Key3
+carpalxTranslationLayer _ Key4 = Key4
+carpalxTranslationLayer _ Key5 = Key5
+carpalxTranslationLayer _ Key6 = Key6
+carpalxTranslationLayer _ Key7 = Key7
+carpalxTranslationLayer _ Key8 = Key8
+carpalxTranslationLayer _ Key9 = Key9
+carpalxTranslationLayer _ Key0 = Key0
+carpalxTranslationLayer _ KeyMinus = KeyMinus
+carpalxTranslationLayer _ KeyEqual = KeyEqual
+carpalxTranslationLayer _ KeyBackspace = KeyGrave -- Ignore key
 
 
 -- Top row
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
 -- ->
 -- tab  q    g    m    l    w    y    f    u    b    ;    [    ]    \
-carpalxTranslationLayer KeyQ = KeyQ
-carpalxTranslationLayer KeyW = KeyG
-carpalxTranslationLayer KeyE = KeyM
-carpalxTranslationLayer KeyR = KeyL
-carpalxTranslationLayer KeyT = KeyW
-carpalxTranslationLayer KeyY = KeyY
-carpalxTranslationLayer KeyU = KeyF
-carpalxTranslationLayer KeyI = KeyU
-carpalxTranslationLayer KeyO = KeyB
-carpalxTranslationLayer KeyP = KeySemicolon
-carpalxTranslationLayer KeyLeftBrace = KeyLeftBrace
-carpalxTranslationLayer KeyRightBrace = KeyRightBrace
-carpalxTranslationLayer KeyBackslash = KeyBackslash
+carpalxTranslationLayer _ KeyQ = KeyQ
+carpalxTranslationLayer _ KeyW = KeyG
+carpalxTranslationLayer _ KeyE = KeyM
+carpalxTranslationLayer _ KeyR = KeyL
+carpalxTranslationLayer _ KeyT = KeyW
+carpalxTranslationLayer _ KeyY = KeyY
+carpalxTranslationLayer _ KeyU = KeyF
+carpalxTranslationLayer _ KeyI = KeyU
+carpalxTranslationLayer _ KeyO = KeyB
+carpalxTranslationLayer _ KeyP = KeySemicolon
+carpalxTranslationLayer _ KeyLeftBrace = KeyLeftBrace
+carpalxTranslationLayer _ KeyRightBrace = KeyRightBrace
+carpalxTranslationLayer _ KeyBackslash = KeyBackslash
 
 -- caps a    s    d    f    g    h    j    k    l    ;    '    ret
 -- ->
 -- caps d    s    t    n    r    i    a    e    o    h    '    ret
-carpalxTranslationLayer KeyA = KeyD
-carpalxTranslationLayer KeyS = KeyS
-carpalxTranslationLayer KeyD = KeyT
-carpalxTranslationLayer KeyF = KeyN
-carpalxTranslationLayer KeyG = KeyR
-carpalxTranslationLayer KeyH = KeyI
-carpalxTranslationLayer KeyJ = KeyA
-carpalxTranslationLayer KeyK = KeyE
-carpalxTranslationLayer KeyL = KeyO
-carpalxTranslationLayer KeySemicolon = KeyH
-carpalxTranslationLayer KeyApostrophe = KeyApostrophe
-carpalxTranslationLayer KeyEnter = KeyEnter
+carpalxTranslationLayer _ KeyA = KeyD
+carpalxTranslationLayer _ KeyS = KeyS
+carpalxTranslationLayer _ KeyD = KeyT
+carpalxTranslationLayer _ KeyF = KeyN
+carpalxTranslationLayer _ KeyG = KeyR
+carpalxTranslationLayer _ KeyH = KeyI
+carpalxTranslationLayer _ KeyJ = KeyA
+carpalxTranslationLayer _ KeyK = KeyE
+carpalxTranslationLayer _ KeyL = KeyO
+carpalxTranslationLayer _ KeySemicolon = KeyH
+carpalxTranslationLayer _ KeyApostrophe = KeyApostrophe
+carpalxTranslationLayer _ KeyEnter = KeyEnter
 
 -- lsft z    x    c    v    b    n    m    ,    .    /    rsft
 -- ->
 -- lsft z    x    c    v    j    k    p    ,    .    /    rsft
-carpalxTranslationLayer KeyZ = KeyZ
-carpalxTranslationLayer KeyX = KeyX
-carpalxTranslationLayer KeyC = KeyC
-carpalxTranslationLayer KeyV = KeyV
-carpalxTranslationLayer KeyB = KeyJ
-carpalxTranslationLayer KeyN = KeyK
-carpalxTranslationLayer KeyM = KeyP
-carpalxTranslationLayer KeyComma = KeyComma
-carpalxTranslationLayer KeyDot = KeyDot
-carpalxTranslationLayer KeySlash = KeySlash
+carpalxTranslationLayer _ KeyZ = KeyZ
+carpalxTranslationLayer _ KeyX = KeyX
+carpalxTranslationLayer _ KeyC = KeyC
+carpalxTranslationLayer _ KeyV = KeyV
+carpalxTranslationLayer _ KeyB = KeyJ
+carpalxTranslationLayer _ KeyN = KeyK
+carpalxTranslationLayer _ KeyM = KeyP
+carpalxTranslationLayer _ KeyComma = KeyComma
+carpalxTranslationLayer _ KeyDot = KeyDot
+carpalxTranslationLayer _ KeySlash = KeySlash
 
 --   lctl lmet lalt           spc            ralt rmet cmp  rctl
 -- ->
@@ -472,9 +482,7 @@ carpalxTranslationLayer KeySlash = KeySlash
 -- carpalxTranslationLayer KeyRightMeta = KeyRightMeta
 -- carpalxTranslationLayer k@KeyCompose = Nothing
 
-carpalxTranslationLayer k = k
-
-
+carpalxTranslationLayer _ k = k
 
 lastServerResponse :: MVar [ServerCmd]
 lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar []
