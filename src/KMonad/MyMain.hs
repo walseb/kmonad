@@ -152,7 +152,7 @@ fn ev = do
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   -- let (m', curr, outKeys) = updateKeymap' m ke
-  let (m', outKeys) = updateKeymap' (catMaybes (parseLayer <$> cmd)) m ev
+  let (m', outKeys) = updateKeymap' cmd m ev
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
