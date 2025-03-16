@@ -105,7 +105,6 @@ initAppEnv cfg = do
     emitKey snk e
     -- If delay is specified, wait for it
     for_ (cfg^.keyOutDelay) $ threadDelay . (*1000) . fromIntegral
-
   pure $ AppEnv
     { _keAppCfg  = cfg
     , _keLogFunc = lgf

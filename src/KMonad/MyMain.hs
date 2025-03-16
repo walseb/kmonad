@@ -136,7 +136,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 -- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
 
 parseLayer :: ServerCmd -> Maybe Layer
-parseLayer (ServerLayer "Emacs") = Just $ Emacs
+parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
 parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
 parseLayer _ = Nothing
@@ -284,8 +284,14 @@ translationLayer layer mod k =
     translationLayer' _layer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
 
-    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (emacsTranslationLayer k) =
-      emacsTranslationLayer k
+    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
+      rootTranslationLayer k
+
+    translationLayer' layer mod k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
+      rootCtrlTranslationLayer k
+
+    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
+      exwmCtrlTranslationLayer k
 
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
@@ -359,10 +365,13 @@ altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt R
 altCtrlTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
-emacsTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
-emacsTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
-emacsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
-emacsTranslationLayer _ = Nothing
+rootTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
+rootTranslationLayer _ = Nothing
+
+rootCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
+rootCtrlTranslationLayer _ = Nothing
 
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 -- C-m -> C-a
@@ -484,16 +493,20 @@ carpalxTranslationLayer _ KeySlash = KeySlash
 
 carpalxTranslationLayer _ k = k
 
-lastServerResponse :: MVar [ServerCmd]
-lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar []
+lastServerResponse :: MVar [Layer]
+lastServerResponse = System.IO.Unsafe.unsafePerformIO $ newMVar [Emacs]
 {-# NOINLINE lastServerResponse #-}
 
-runServerPull :: IO [ServerCmd]
+runServerPull :: IO [Layer]
 runServerPull = do
   last <- takeMVar lastServerResponse
-  out <- fromMaybe last <$> tryReadMVar serverMVar
-  putMVar lastServerResponse out
-  pure out
+  resp <- tryReadMVar serverMVar
+  let
+    resp' :: Maybe [Layer]
+    resp' = catMaybes <$> ((fmap . fmap) parseLayer resp)
+    out' = fromMaybe last resp'
+  putMVar lastServerResponse out'
+  pure out'
 
 pull' :: (HasAppEnv e, HasLogFunc e, HasAppCfg e) => KeySource -> RIO e [KeyEvent]
 pull' s = awaitKey s >>=
