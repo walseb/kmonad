@@ -119,13 +119,13 @@ updateKeymap l list (KeyEvent s k) =
 
         modifiers c entr = modifierSet c (Release, entr)
 
--- Key press
-updateKeymap' layer list (KeyEvent Press k) =
-  -- Tr.trace ("New entry: " ++ (show newEntry)) $
-  foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
-    where
-      newEntries = translationLayer layer (concat (mods <$> list)) k
-      modifiers c new = modifierSet c (Press, new)
+    -- Key press
+    update layer list (KeyEvent Press k) =
+      -- Tr.trace ("New entry: " ++ (show newEntry)) $
+      foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
+        where
+          newEntries = translationLayer layer (concat (mods <$> list)) k
+          modifiers c new = modifierSet c (Press, new)
 
 keyMap :: MVar [MyKeyCommand]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
