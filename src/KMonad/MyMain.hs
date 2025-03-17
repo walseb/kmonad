@@ -90,34 +90,34 @@ loop = forever $ do
 updateKeymap :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
 updateKeymap l list (KeyEvent s k) = 
   let ke = KeyEvent s ((carpalxTranslationLayer l . hostnameTranslationLayer l currHostname) k)
-  in updateKeymap' l list ke
+  in update l list ke
 
--- Key release
-updateKeymap' :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
-updateKeymap' _ list (KeyEvent Release k) =
-  foldr
-    (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
-      if k' == k
-      then (b, (modifiers trueContext a) ++ (release a) ++ evs)
-      -- Put back if no match
-      else ((a : b), evs))
-    ([], [])
-    list
-  -- construct <$> relevantEntries
+  where 
+    -- Key release
+    update :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
+    update _ list (KeyEvent Release k) =
+      foldr
+        (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
+          if k' == k
+          then (b, (modifiers trueContext a) ++ (release a) ++ evs)
+          -- Put back if no match
+          else ((a : b), evs))
+        ([], [])
+        list
+      -- construct <$> relevantEntries
 
-  where
-    trueContext :: [MyKeyCommand]
-    trueContext = filter (((/=) k) . rawKey) list
+      where
+        trueContext :: [MyKeyCommand]
+        trueContext = filter (((/=) k) . rawKey) list
 
-    -- relevantEntries :: [MyKeyCommand]
-    -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
+        -- relevantEntries :: [MyKeyCommand]
+        -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
 
-    -- construct entr@(MyKeyCommand k _ _ _) =
-    --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
-    --     release entr)]
+        -- construct entr@(MyKeyCommand k _ _ _) =
+        --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
+        --     release entr)]
 
-    modifiers c entr = modifierSet c (Release, entr)
-
+        modifiers c entr = modifierSet c (Release, entr)
 
 -- Key press
 updateKeymap' layer list (KeyEvent Press k) =
@@ -154,7 +154,7 @@ fn ev = do
 
   -- () <- Tr.trace ("Current keymap: " ++ show m) (pure ())
   -- let (m', curr, outKeys) = updateKeymap' m ke
-  let (m', outKeys) = updateKeymap' cmd m ev
+  let (m', outKeys) = updateKeymap cmd m ev
   -- () <- Tr.trace ("Current key: " ++ show curr) (pure ())
   -- () <- Tr.trace ("Updated keymap: " ++ show m') (pure ())
   _ <- putMVar keyMap m'
@@ -266,16 +266,14 @@ translationLayer layer mod k =
     findLayerEmacs _ = False
 
 
-    translationLayer' _layer mod k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
-    translationLayer' _layer mod k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
-    translationLayer' _layer mod k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
-    translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+    translationLayer' _layer _ k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
+    translationLayer' _layer _ k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer _ k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer _ k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+    translationLayer' _layer _ k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Shortcircut if in steno
-    -- translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
-
-    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
-      exwmCtrlTranslationLayer k
+    translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
     translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
@@ -400,7 +398,7 @@ hostnameTranslationLayer _ _ a = a
 
 -- QWERTY -> Carpalx
 carpalxTranslationLayer :: [Layer] -> Keycode -> Keycode
--- carpalxTranslationLayer l k | any findLayerRawOrSteno l = k
+carpalxTranslationLayer l k | any findLayerRawOrSteno l = k
 carpalxTranslationLayer _ KeyEsc = KeyEsc
 carpalxTranslationLayer _ KeyHome = KeyHome
 carpalxTranslationLayer _ KeyEnd = KeyEnd
@@ -433,7 +431,6 @@ carpalxTranslationLayer _ Key0 = Key0
 carpalxTranslationLayer _ KeyMinus = KeyMinus
 carpalxTranslationLayer _ KeyEqual = KeyEqual
 carpalxTranslationLayer _ KeyBackspace = KeyGrave -- Ignore key
-
 
 -- Top row
 -- tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
