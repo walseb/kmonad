@@ -139,6 +139,8 @@ parseLayer :: ServerCmd -> Maybe Layer
 parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
 parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
+parseLayer (ServerLayer "raw") = Just $ Raw
+parseLayer (ServerLayer "steno") = Just $ Steno
 parseLayer _ = Nothing
 
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
@@ -270,7 +272,7 @@ translationLayer layer mod k =
     translationLayer' _layer mod k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Shortcircut if in steno
-    translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
+    -- translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
     translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
       exwmCtrlTranslationLayer k
@@ -398,7 +400,7 @@ hostnameTranslationLayer _ _ a = a
 
 -- QWERTY -> Carpalx
 carpalxTranslationLayer :: [Layer] -> Keycode -> Keycode
-carpalxTranslationLayer l k | any findLayerRawOrSteno l = k
+-- carpalxTranslationLayer l k | any findLayerRawOrSteno l = k
 carpalxTranslationLayer _ KeyEsc = KeyEsc
 carpalxTranslationLayer _ KeyHome = KeyHome
 carpalxTranslationLayer _ KeyEnd = KeyEnd
