@@ -124,7 +124,7 @@ updateKeymap l list (KeyEvent s k) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
         where
-          newEntries = translationLayer layer (concat (mods <$> list)) k
+          newEntries = translationLayer currHostname layer list (concat (mods <$> list)) k
           modifiers c new = modifierSet c (Press, new)
 
 keyMap :: MVar [MyKeyCommand]
@@ -249,11 +249,14 @@ findLayerRawOrSteno Steno = True
 findLayerRawOrSteno Raw = True
 findLayerRawOrSteno _ = False
 
+findLayerRaw Raw = True
+findLayerRaw _ = False
+
 findLayerSteno Steno = True
 findLayerSteno _ = False
 
-translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
-translationLayer layer mod k =
+translationLayer :: String -> [Layer] -> [MyKeyCommand] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
+translationLayer hostname layer last mod k =
   fromMaybe [] $ translationLayer' layer mod k
 
   where
@@ -267,15 +270,17 @@ translationLayer layer mod k =
 
     findLayerEmacs Emacs = True
     findLayerEmacs _ = False
-
-
+    
     translationLayer' _layer _ k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer _ k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
     translationLayer' _layer _ k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
-    -- Shortcircut if in steno
+    -- Notice that this steno layer absorbs any key that's not the exit key
+    translationLayer' layer _ k | any findLayerRaw layer =
+      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last hostname k)
+
     translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
     translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
@@ -377,8 +382,15 @@ rootCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Re
 rootCtrlTranslationLayer _ = Nothing
 
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
--- C-m -> C-a
 exwmCtrlTranslationLayer _ = Nothing
+
+stenoLayer :: [MyKeyCommand] -> String -> Keycode -> Maybe [MyKeyCommand]
+stenoLayer last "desktop" k@KeyE =
+  -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
+  if (length last == 1) && (any ((==) KeyN) (rawKey <$> last))
+  then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
+  else Nothing
+stenoLayer _ _ _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
