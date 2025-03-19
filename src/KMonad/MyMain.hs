@@ -279,7 +279,7 @@ translationLayer hostname layer last mod k =
 
     -- Notice that this steno layer absorbs any key that's not the exit key
     translationLayer' layer _ k | any findLayerRaw layer =
-      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last hostname k)
+      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last mod hostname k)
 
     translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
@@ -384,13 +384,20 @@ rootCtrlTranslationLayer _ = Nothing
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 exwmCtrlTranslationLayer _ = Nothing
 
-stenoLayer :: [MyKeyCommand] -> String -> Keycode -> Maybe [MyKeyCommand]
-stenoLayer last "desktop" k@KeyE =
+stenoLayer :: [MyKeyCommand] -> [MyModifiersRequested] -> String -> Keycode -> Maybe [MyKeyCommand]
+-- Handle pressing C-e. K here would be E in a Carpalx layout
+stenoLayer last _mod "desktop" k@KeyK =
   -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
-  if (length last == 1) && (any ((==) KeyN) (rawKey <$> last))
+  if length last == 1 && (any ((==) KeyN) (rawKey <$> last))
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
-stenoLayer _ _ _ = Nothing
+-- For other machines that don't rebind ctrl, if Ctrl is pressed down and you press what would be 'e' in Carpalx, exit state
+stenoLayer last mod _ k@KeyK =
+  -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
+  if length last == 1 && (any ((==) (ModCtrl Press)) mod)
+  then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
+  else Nothing
+stenoLayer _ _ _ _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
@@ -412,7 +419,7 @@ hostnameTranslationLayer _ "thinkpad-t480" KeyEnter = KeyBackslash
 -- Steno on ergodox
 hostnameTranslationLayer l "desktop" KeyLeftShift | any findLayerSteno l = KeyC
 hostnameTranslationLayer l "desktop" KeySpace | any findLayerSteno l = KeyV
-hostnameTranslationLayer l "desktop" KeyLeftCtrl | any findLayerSteno l = KeyN
+hostnameTranslationLayer l "desktop" KeyCapsLock | any findLayerSteno l = KeyN
 hostnameTranslationLayer l "desktop" KeyLeftAlt | any findLayerSteno l = KeyM
 hostnameTranslationLayer _ _ a = a
 
