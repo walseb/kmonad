@@ -249,6 +249,9 @@ findLayerRawOrSteno Steno = True
 findLayerRawOrSteno Raw = True
 findLayerRawOrSteno _ = False
 
+findLayerSteno Steno = True
+findLayerSteno _ = False
+
 translationLayer :: [Layer] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
 translationLayer layer mod k =
   fromMaybe [] $ translationLayer' layer mod k
@@ -394,6 +397,11 @@ ctrlTranslationLayer _ = Nothing
 hostnameTranslationLayer :: [Layer] -> String -> Keycode -> Keycode
 hostnameTranslationLayer _ "thinkpad-t480" KeyBackslash = KeyEnter
 hostnameTranslationLayer _ "thinkpad-t480" KeyEnter = KeyBackslash
+-- Steno on ergodox
+hostnameTranslationLayer l "desktop" KeyLeftShift | any findLayerSteno l = KeyC
+hostnameTranslationLayer l "desktop" KeySpace | any findLayerSteno l = KeyV
+hostnameTranslationLayer l "desktop" KeyLeftCtrl | any findLayerSteno l = KeyN
+hostnameTranslationLayer l "desktop" KeyLeftAlt | any findLayerSteno l = KeyM
 hostnameTranslationLayer _ _ a = a
 
 -- QWERTY -> Carpalx
