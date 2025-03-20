@@ -96,7 +96,7 @@ updateKeymap l list (KeyEvent s k) =
     update :: [Layer] -> [MyKeyComplete] -> (Keycode, KeyEvent) -> ([MyKeyComplete], [KeyEvent])
     update _ list (k, (KeyEvent Release _)) =
       foldr
-        (\a@(MyKeyComplete _ a'@(MyKeyCommand k' _ _ _)) (b, evs) ->
+        (\a@(MyKeyComplete k' a') (b, evs) ->
           if k' == k
           then (b, (modifiers trueContext a') ++ (release a') ++ evs)
           -- Put back if no match
