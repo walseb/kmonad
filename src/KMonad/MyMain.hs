@@ -87,19 +87,18 @@ loop = forever $ do
   snk <- (view keySink)
   sequence $ (emitKey snk) <$> ev
 
-updateKeymap :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
-updateKeymap l list (KeyEvent s k) = 
+updateKeymap :: [Layer] -> [MyKeyComplete] -> KeyEvent -> ([MyKeyComplete], [KeyEvent])
+updateKeymap l list (KeyEvent s k) =
   let ke = KeyEvent s ((carpalxTranslationLayer l . hostnameTranslationLayer l currHostname) k)
-  in update l list ke
-
-  where 
+  in update l list (k, ke)
+  where
     -- Key release
-    update :: [Layer] -> [MyKeyCommand] -> KeyEvent -> ([MyKeyCommand], [KeyEvent])
-    update _ list (KeyEvent Release k) =
+    update :: [Layer] -> [MyKeyComplete] -> (Keycode, KeyEvent) -> ([MyKeyComplete], [KeyEvent])
+    update _ list (k, (KeyEvent Release _)) =
       foldr
-        (\a@(MyKeyCommand k' _ _ _) (b, evs) ->
+        (\a@(MyKeyComplete _ a'@(MyKeyCommand k' _ _ _)) (b, evs) ->
           if k' == k
-          then (b, (modifiers trueContext a) ++ (release a) ++ evs)
+          then (b, (modifiers trueContext a') ++ (release a') ++ evs)
           -- Put back if no match
           else ((a : b), evs))
         ([], [])
@@ -108,7 +107,7 @@ updateKeymap l list (KeyEvent s k) =
 
       where
         trueContext :: [MyKeyCommand]
-        trueContext = filter (((/=) k) . rawKey) list
+        trueContext = filter (((/=) k) . rawKey) (result <$> list)
 
         -- relevantEntries :: [MyKeyCommand]
         -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
@@ -120,14 +119,15 @@ updateKeymap l list (KeyEvent s k) =
         modifiers c entr = modifierSet c (Release, entr)
 
     -- Key press
-    update layer list (KeyEvent Press k) =
+    update layer list (orig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      foldr (\new (old, cmd) -> (new : old, ((modifiers old new) ++ (activation new) ++ cmd))) (list, []) newEntries
+      foldr (\new@(MyKeyComplete _ new') (old, cmd) -> (new : old, ((modifiers (result <$> old) new') ++ (activation new') ++ cmd))) (list, []) newEntries
         where
-          newEntries = translationLayer currHostname layer list (concat (mods <$> list)) k
+          newEntries :: [MyKeyComplete]
+          newEntries = (MyKeyComplete orig) <$> (translationLayer currHostname layer list (concat ((mods . result) <$> list)) orig k)
           modifiers c new = modifierSet c (Press, new)
 
-keyMap :: MVar [MyKeyCommand]
+keyMap :: MVar [MyKeyComplete]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
@@ -222,6 +222,12 @@ mapMod f (ModRAlt p) = ModRAlt (f p)
 data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
   deriving (Eq, Show)
 
+data MyKeyComplete = MyKeyComplete 
+  {
+    origKey :: Keycode
+    , result :: MyKeyCommand
+  }
+
 -- Keycode that's being pressed (input) + way to undo it.
 data MyKeyCommand = MyKeyCommand {
   rawKey :: Keycode
@@ -255,9 +261,9 @@ findLayerRaw _ = False
 findLayerSteno Steno = True
 findLayerSteno _ = False
 
-translationLayer :: String -> [Layer] -> [MyKeyCommand] -> [MyModifiersRequested] -> Keycode -> [MyKeyCommand]
-translationLayer hostname layer last mod k =
-  fromMaybe [] $ translationLayer' layer mod k
+translationLayer :: String -> [Layer] -> [MyKeyComplete] -> [MyModifiersRequested] -> Keycode -> Keycode -> [MyKeyCommand]
+translationLayer hostname layer last mod kOrig k =
+  fromMaybe [] $ translationLayer' layer mod kOrig k
 
   where
     findAlt (ModAlt Press) = True
@@ -271,40 +277,43 @@ translationLayer hostname layer last mod k =
     findLayerEmacs Emacs = True
     findLayerEmacs _ = False
     
-    translationLayer' _layer _ k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
-    translationLayer' _layer _ k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
-    translationLayer' _layer _ k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
-    translationLayer' _layer _ k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
-    translationLayer' _layer _ k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
+    translationLayer' _layer _ _kOrig k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
+    translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
+    translationLayer' _layer _ _kOrig k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+    translationLayer' _layer _ _kOrig k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Notice that this steno layer absorbs any key that's not the exit key
-    translationLayer' layer _ k | any findLayerRaw layer =
-      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last mod hostname k)
+    translationLayer' layer _ kOrig k | any findLayerRaw layer =
+      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer (result <$> last) mod hostname kOrig k)
 
-    translationLayer' layer _ k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
+    -- Shortcircut if in steno
+    translationLayer' layer _ _kOrig k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
 
-    translationLayer' _layer mod k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
+    translationLayer' layer _ _kOrig k | any findLayerRaw layer = Just $ list $ keyCommand k k []
+
+    translationLayer' _layer mod _kOrig k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
 
-    translationLayer' _layer mod k | any findAlt mod && isJust (altTranslationLayer k) =
+    translationLayer' _layer mod _kOrig k | any findAlt mod && isJust (altTranslationLayer k) =
       altTranslationLayer k
 
-    translationLayer' _layer mod k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
+    translationLayer' _layer mod _kOrig k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
 
-    translationLayer' layer mod k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
+    translationLayer' layer mod _kOrig k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
       rootTranslationLayer k
 
-    translationLayer' layer mod k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
+    translationLayer' layer mod _kOrig k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
       rootCtrlTranslationLayer k
 
-    translationLayer' layer mod k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
+    translationLayer' layer mod _kOrig k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
       exwmCtrlTranslationLayer k
 
     -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
     --   altTranslationLayer k
 
-    translationLayer' _layer _ k = Just $ list $ keyCommand k k []
+    translationLayer' _layer _ _kOrig k = Just $ list $ keyCommand k k []
 
 -- _      @!     @at    @#    @$      @%     @*     @lpar  @rpar  @&     @^     @un    @+     @=
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
@@ -384,15 +393,15 @@ rootCtrlTranslationLayer _ = Nothing
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 exwmCtrlTranslationLayer _ = Nothing
 
-stenoLayer :: [MyKeyCommand] -> [MyModifiersRequested] -> String -> Keycode -> Maybe [MyKeyCommand]
+stenoLayer :: [MyKeyCommand] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [MyKeyCommand]
 -- Handle pressing C-e. K here would be E in a Carpalx layout
-stenoLayer last _mod "desktop" k@KeyK =
+stenoLayer last _mod "desktop" k@KeyK _ =
   -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
   if length last == 1 && (any ((==) KeyN) (rawKey <$> last))
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
 -- For other machines that don't rebind ctrl, if Ctrl is pressed down and you press what would be 'e' in Carpalx, exit state
-stenoLayer last mod _ k@KeyK =
+stenoLayer last mod _ k@KeyK _ =
   -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
   if length last == 1 && (any ((==) (ModCtrl Press)) mod)
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
