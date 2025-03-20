@@ -93,11 +93,12 @@ updateKeymap l list (KeyEvent s k) =
   in update l list (k, ke)
   where
     -- Key release
+    -- We need to release the original key because 
     update :: [Layer] -> [MyKeyComplete] -> (Keycode, KeyEvent) -> ([MyKeyComplete], [KeyEvent])
-    update _ list (k, (KeyEvent Release _)) =
+    update _ list (kOrig, (KeyEvent Release _)) =
       foldr
         (\a@(MyKeyComplete k' a') (b, evs) ->
-          if k' == k
+          if k' == kOrig
           then (b, (modifiers trueContext a') ++ (release a') ++ evs)
           -- Put back if no match
           else ((a : b), evs))
@@ -107,7 +108,7 @@ updateKeymap l list (KeyEvent s k) =
 
       where
         trueContext :: [MyKeyCommand]
-        trueContext = filter (((/=) k) . rawKey) (result <$> list)
+        trueContext = filter (((/=) kOrig) . rawKey) (result <$> list)
 
         -- relevantEntries :: [MyKeyCommand]
         -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
