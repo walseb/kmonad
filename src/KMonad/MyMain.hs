@@ -406,7 +406,7 @@ stenoLayer last mod _ k@KeyK _ =
   if length last == 1 && (any ((==) (ModCtrl Press)) mod)
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
-stenoLayer _ _ _ _ = Nothing
+stenoLayer _ _ _ _ _ = Nothing
 
 -- caps      _      _      _      _      _      _      _      _      _      _      _      _      _
 --  _      _      _      _      @del   _      _      @bspc  _      _      _      _      _      _
