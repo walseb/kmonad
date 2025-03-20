@@ -81,11 +81,17 @@ startApp c = do
   runContT (initAppEnv c) (`runRIO` loop)
 
 loop :: RIO AppEnv ()
-loop = forever $ do
-  src <- view keySource
-  ev <- pull' src
-  snk <- (view keySink)
-  sequence $ (emitKey snk) <$> ev
+loop = do
+  -- Go ahead and emit capslock release in the initial tick
+  snk' <- (view keySink)
+  _ <- sequence $ (emitKey snk') <$> [(KeyEvent Release KeyCapsLock)]
+
+  forever $ do
+    -- Do we need to re-grab these every tick?
+    src <- view keySource
+    ev <- pull' src
+    snk <- (view keySink)
+    sequence $ (emitKey snk) <$> ev
 
 updateKeymap :: [Layer] -> [MyKeyComplete] -> KeyEvent -> ([MyKeyComplete], [KeyEvent])
 updateKeymap l list (KeyEvent s k) =
@@ -93,7 +99,7 @@ updateKeymap l list (KeyEvent s k) =
   in update l list (k, ke)
   where
     -- Key release
-    -- We need to release the original key because 
+    -- We need to release the original key because
     update :: [Layer] -> [MyKeyComplete] -> (Keycode, KeyEvent) -> ([MyKeyComplete], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
       foldr
@@ -223,7 +229,7 @@ mapMod f (ModRAlt p) = ModRAlt (f p)
 data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
   deriving (Eq, Show)
 
-data MyKeyComplete = MyKeyComplete 
+data MyKeyComplete = MyKeyComplete
   {
     origKey :: Keycode
     , result :: MyKeyCommand
@@ -277,7 +283,7 @@ translationLayer hostname layer last mod kOrig k =
 
     findLayerEmacs Emacs = True
     findLayerEmacs _ = False
-    
+
     translationLayer' _layer _ _kOrig k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
