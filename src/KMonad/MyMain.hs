@@ -292,7 +292,7 @@ translationLayer hostname layer last mod kOrig k =
 
     -- Notice that this steno layer absorbs any key that's not the exit key
     translationLayer' layer _ kOrig k | any findLayerRaw layer =
-      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer (result <$> last) mod hostname kOrig k)
+      Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last mod hostname kOrig k)
 
     -- Shortcircut if in steno
     translationLayer' layer _ _kOrig k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
@@ -400,11 +400,10 @@ rootCtrlTranslationLayer _ = Nothing
 exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
 exwmCtrlTranslationLayer _ = Nothing
 
-stenoLayer :: [MyKeyCommand] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [MyKeyCommand]
+stenoLayer :: [MyKeyComplete] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [MyKeyCommand]
 -- Handle pressing C-e. K here would be E in a Carpalx layout
 stenoLayer last _mod "desktop" k@KeyK _ =
-  -- KeyN is where the ctrl key would be if it hadn't been rebound by the steno map
-  if length last == 1 && (any ((==) KeyN) (rawKey <$> last))
+  if length last == 1 && (any ((==) KeyCapsLock) (origKey <$> last))
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
 -- For other machines that don't rebind ctrl, if Ctrl is pressed down and you press what would be 'e' in Carpalx, exit state
