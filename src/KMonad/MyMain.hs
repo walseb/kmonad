@@ -114,7 +114,7 @@ updateKeymap l list (KeyEvent s k) =
 
       where
         trueContext :: [MyKeyCommand]
-        trueContext = filter (((/=) kOrig) . rawKey) (result <$> list)
+        trueContext = result <$> (filter (\(MyKeyComplete k _) -> ((k /= kOrig))) list)
 
         -- relevantEntries :: [MyKeyCommand]
         -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
@@ -126,12 +126,12 @@ updateKeymap l list (KeyEvent s k) =
         modifiers c entr = modifierSet c (Release, entr)
 
     -- Key press
-    update layer list (orig, (KeyEvent Press k)) =
+    update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new@(MyKeyComplete _ new') (old, cmd) -> (new : old, ((modifiers (result <$> old) new') ++ (activation new') ++ cmd))) (list, []) newEntries
         where
           newEntries :: [MyKeyComplete]
-          newEntries = (MyKeyComplete orig) <$> (translationLayer currHostname layer list (concat ((mods . result) <$> list)) orig k)
+          newEntries = (MyKeyComplete kOrig) <$> (translationLayer currHostname layer list (concat ((mods . result) <$> list)) kOrig k)
           modifiers c new = modifierSet c (Press, new)
 
 keyMap :: MVar [MyKeyComplete]
@@ -308,7 +308,7 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer mod _kOrig k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
 
-    translationLayer' layer mod _kOrig k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
+    translationLayer' layer _mod _kOrig k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
       rootTranslationLayer k
 
     translationLayer' layer mod _kOrig k | any findCtrl mod && (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootCtrlTranslationLayer k) =
@@ -316,9 +316,6 @@ translationLayer hostname layer last mod kOrig k =
 
     translationLayer' layer mod _kOrig k | any findCtrl mod && any findLayerEXWM layer && isJust (exwmCtrlTranslationLayer k) =
       exwmCtrlTranslationLayer k
-
-    -- translationLayer' EXWM mod k | any findAlt mod && isJust (exwmAltTranslationLayer k) =
-    --   altTranslationLayer k
 
     translationLayer' _layer _ _kOrig k = Just $ list $ keyCommand k k []
 
