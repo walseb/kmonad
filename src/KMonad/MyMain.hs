@@ -291,12 +291,10 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer _ _kOrig k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Notice that this steno layer absorbs any key that's not the exit key
-    translationLayer' layer _ kOrig k | any findLayerRaw layer =
+    translationLayer' layer _ kOrig k | any findLayerSteno layer =
       Just $ fromMaybe (list $ keyCommand k k []) (stenoLayer last mod hostname kOrig k)
 
-    -- Shortcircut if in steno
-    translationLayer' layer _ _kOrig k | any findLayerRawOrSteno layer = Just $ list $ keyCommand k k []
-
+    -- Shortcircut if in raw
     translationLayer' layer _ _kOrig k | any findLayerRaw layer = Just $ list $ keyCommand k k []
 
     translationLayer' _layer mod _kOrig k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
