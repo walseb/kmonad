@@ -171,7 +171,7 @@ updateKeymap l list (KeyEvent s k) =
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
           -- newModifiers = listOnlyMods newEntries
-          oldModifiers = (concat (modifier <$> (listOnlyMods list)) )
+          oldModifiers = (concat (modifier <$> (listOnlyMods list)))
 
           listOnlyMods l = catMaybes $ removeKeys <$> l
             where
@@ -247,7 +247,7 @@ modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just 
   fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
 
 modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier (Modifier _ mods'))) =
-  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
 modifierSet oldGlobalMods (Release, (MyModifier (Modifier _ mods))) _ =
@@ -301,12 +301,22 @@ mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersReq
 mergeMods major minor =
   modDeleteDuplicates $ major ++ minor
 
+-- [M Release]
+-- [M Press]
+
 -- Finds and removes orphaned mods
+-- Apply only the keys in targetMods that don't exist EXACTLYL in oldMods
 fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
 fromTargetGivenContext targetMods oldMods = 
-  applyMods <$> (catMaybes $ conflictingModSwitch <$> targetMods <*> oldMods)
-    -- where
-    --   notPresentInNewmods = filter (\a -> (not (elem a targetMods))) oldMods
+  applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods
+    where
+      modDeleteAbsDuplicatesFrom c source = foldr
+                      (\a b ->
+                        if any ((==) a) source
+                        then b
+                        else (a : b))
+                      []
+                      c
 
 disableMod (ModShift Press) = Just (ModShift Release)
 disableMod (ModAlt Press) = Just (ModAlt Release)
@@ -371,6 +381,8 @@ conflictingModSwitch _ _ = Nothing
 
 -- modifierSet _ (Press, curr) =
 --   applyMods <$> mods curr
+
+
 
 modDeleteDuplicates c = foldr
                 (\a b ->
