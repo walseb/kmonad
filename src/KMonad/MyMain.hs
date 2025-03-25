@@ -304,15 +304,22 @@ mergeMods major minor =
 -- [M Release]
 -- [M Press]
 
+
+-- []
+-- [M Press]
+
 -- Finds and removes orphaned mods
 -- Apply only the keys in targetMods that don't exist EXACTLYL in oldMods
 fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
 fromTargetGivenContext targetMods oldMods = 
-  applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods
+  -- Release any that are conflicting
+  (applyMods <$> (modDeleteDuplicates (catMaybes (conflictingModSwitch <$> targetMods <*> oldMods))))
+  -- Press the keys that don't exist in the oldMods. This is needed because the conflict one exludes ones that aren't in the oldMods
+    ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
       modDeleteAbsDuplicatesFrom c source = foldr
                       (\a b ->
-                        if any ((==) a) source
+                        if any (eqModAbstract a) source
                         then b
                         else (a : b))
                       []
