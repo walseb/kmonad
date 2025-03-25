@@ -117,16 +117,18 @@ updateKeymap l list (KeyEvent s k) =
       where
         oldModState = concat $ modifier <$> (listOnlyMods list)
 
-        fold (k', (MyModifier (Modifier _ _))) (released, b, evs) = undefined
-        fold a@(k', (MyKeyCommand a')) (released, b, evs) = 
+        fold a@(k', a') (released, b, evs) = 
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then (a : released, b, (release a'
+                        then (a : released, b, (fromMaybe [] (maybeGetRelease a')
                           ++ evs
                           -- So releases don't need a last key
                           ++ modifierSet oldModState (Release, snd a) Nothing))
                         -- Put back if no match
                         else (released, (a : b), evs)
+          where
+            maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
+            maybeGetRelease _ = Nothing
 
         -- listNoMods = catMaybes $ removeMod <$> list
         --   where
