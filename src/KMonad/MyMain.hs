@@ -112,14 +112,19 @@ updateKeymap l list (KeyEvent s k) =
               fold
               ([], [], [])
               list
-      in (newState, ev ++ modifierSet (listOnlyMods newState) (headSafe newState) (headSafe list))
+      in (newState, ev)
 
       where
+        oldModState = concat $ modifier <$> (listOnlyMods list)
+
         fold (k', (MyModifier (Modifier _ _))) (released, b, evs) = undefined
         fold a@(k', (MyKeyCommand a')) (released, b, evs) = 
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then (a : released, b, (release a' ++ evs))
+                        then (a : released, b, (release a'
+                          ++ evs
+                          -- So releases don't need a last key
+                          ++ modifierSet oldModState (Release, snd a) Nothing))
                         -- Put back if no match
                         else (released, (a : b), evs)
 
@@ -154,7 +159,7 @@ updateKeymap l list (KeyEvent s k) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new@(_, new') (old, cmd) ->
         (new : old,
-          ((modifierSet newModifiers (removeMod new) (headSafe (listNoMods list)))
+          ((modifierSet oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
           -- If the key isn't a mod key, then apply the activation part
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
           ++ cmd)))
@@ -163,7 +168,8 @@ updateKeymap l list (KeyEvent s k) =
         where
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
-          newModifiers = listOnlyMods newEntries
+          -- newModifiers = listOnlyMods newEntries
+          oldModifiers = (concat (modifier <$> (listOnlyMods list)) )
 
           listOnlyMods l = catMaybes $ removeKeys <$> l
             where
@@ -219,18 +225,109 @@ mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 -- Some other key might be pressed just before this is pressed
 -- Only on press, activate everything it needs and deactivate everything it doesn't need. We know what do deactivate as it's shown in the
 
-modifierSet :: [MyModifiersRequested] -> Maybe (RootKeycode, RootInput) -> Maybe (RootKeycode, RootInput) -> [KeyEvent]
-modifierSet newGlobalMods (Just (k, (MyModifier (Modifier _ _)))) _ =
-  applyMods <$> newGlobalMods
+-- overlayModState :: MVar [MyModifiersRequested]
+-- overlayModState = System.IO.Unsafe.unsafePerformIO $ newMVar []
+-- {-# NOINLINE overlayModState #-}
 
-modifierSet newGlobalMods (Just (k, _)) (Just (k', _)) | k == k' =
-  []
+-- The non-global mods need to be thrown out as soon as a new key not requiring them is pressed
+modifierSet :: [MyModifiersRequested] -> (Switch, RootInput) -> Maybe RootInput -> [KeyEvent]
 
-modifierSet newGlobalMods Nothing (Just (k', (KeyCommand _ _ _ mods))) =
-  undefined  
+modifierSet oldGlobalMods (Press, (MyModifier (Modifier _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
 
-modifierSet newGlobalMods newTop oldTop =
-  undefined
+modifierSet oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods 
+
+modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) Nothing =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
+
+modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
+
+modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier (Modifier _ mods'))) =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
+
+-- TODO: Account for last key and resume its context
+modifierSet oldGlobalMods (Release, (MyModifier (Modifier _ mods))) _ =
+  fromTargetGivenContext globalModsWithoutReleasedMod (mods ++ oldGlobalMods)
+  where
+    globalModsWithoutReleasedMod = (filter (\a -> (elem a mods)) oldGlobalMods)
+
+modifierSet oldGlobalMods (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
+  fromTargetGivenContext oldGlobalMods (mergeMods mods oldGlobalMods)
+  
+-- modifierSet _ (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
+--   applyMods <$> mods
+
+-- releaseOverlayState globalMods = System.IO.Unsafe.unsafePerformIO $ do
+--   ov <- setOverlayModState []
+--   pure $ disableMod
+--     -- If duplicate in the global mods, don't disable it
+--     <$> filter (\a -> elem a globalMods) ov
+-- {-# NOINLINE releaseOverlayState #-}
+
+-- setOverlayModState a =
+--   swapMVar overlayModState a
+
+-- modifierSet _ (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) =
+--   applyMods <$> mods
+
+-- If the new key is the same as the old key, we can't actually say anything. One key might have triggered multiple of these
+-- modifierSet newGlobalMods (Just (k, _)) (Just (k', _)) | k == k' =
+--   []
+
+-- If new key is a key, and the last key was none, simply apply the new key
+-- If last key was nothing, then we know that the new mods is an empty list
+-- modifierSet [] (Just (k, (MyKeyCommand (KeyCommand _ _ _ mods)))) Nothing =
+--   applyMods <$> mods
+
+-- -- modifierSet newGlobalMods Nothing (Just (k', (KeyCommand _ _ _ mods))) =
+-- --   undefined  
+-- --e 
+-- -- If new key is a key, and last key was a modifier, we only need to apply the difference
+-- modifierSet _ (Just (_, (MyKeyCommand (KeyCommand _ _ _ mods)))) (Just (_, (MyModifier (Modifier _ _)))) =
+--   applyMods <$> mods
+
+-- modifierSet globalMods (Just (_, (MyModifier (Modifier _ mods)))) (Just (_, (MyKeyCommand (KeyCommand _ _ _ mods')))) =
+--   applyMods <$> mods
+--   ++ (fromTargetGivenContext globalMods mods mods')
+
+-- modifierSet newGlobalMods newTop oldTop =
+--   undefined
+
+mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersRequested]
+mergeMods major minor =
+  modDeleteDuplicates $ major ++ minor
+
+-- Finds and removes orphaned mods
+fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
+fromTargetGivenContext targetMods oldMods = 
+  applyMods <$> (catMaybes $ conflictingModSwitch <$> targetMods <*> oldMods)
+    -- where
+    --   notPresentInNewmods = filter (\a -> (not (elem a targetMods))) oldMods
+
+disableMod (ModShift Press) = Just (ModShift Release)
+disableMod (ModAlt Press) = Just (ModAlt Release)
+disableMod (ModCtrl Press) = Just (ModCtrl Release)
+disableMod (ModRAlt Press) = Just (ModRAlt Release)
+disableMod (ModShift Release) = Nothing
+disableMod (ModAlt Release) = Nothing
+disableMod (ModCtrl Release) = Nothing
+disableMod (ModRAlt Release) = Nothing
+
+-- If you have two modifiers, what needs to be changed?
+-- The first mod has presedence.
+conflictingModSwitch (ModShift s) (ModShift s') | s' == s = Nothing
+conflictingModSwitch (ModAlt s) (ModAlt s') | s' == s = Nothing
+conflictingModSwitch (ModCtrl s) (ModCtrl s') | s' == s = Nothing
+conflictingModSwitch (ModRAlt s) (ModRAlt s') | s' == s = Nothing
+conflictingModSwitch (ModShift s) (ModShift _) = Just (ModShift s)
+conflictingModSwitch (ModAlt s) (ModAlt _) = Just (ModAlt s)
+conflictingModSwitch (ModCtrl s) (ModCtrl _) = Just (ModCtrl s)
+conflictingModSwitch (ModRAlt s) (ModRAlt _) = Just (ModRAlt s)
+conflictingModSwitch _ _ = Nothing
+-- conflictingModSwitch _  (ModRAlt s) = Just (ModRAlt s)
+
   -- where
   --   notInNew = mods
 -- modifierSet c (Press, curr) =
@@ -286,6 +383,13 @@ eqModAbstract (ModAlt _) (ModAlt _) = True
 eqModAbstract (ModCtrl _) (ModCtrl _) = True
 eqModAbstract (ModRAlt _) (ModRAlt _) = True
 eqModAbstract _ _ = False
+
+
+-- modIsPressed (ModShift _) = True
+-- modIsPressed (ModAlt _) = True
+-- modIsPressed (ModCtrl _) = True
+-- modIsPressed (ModRAlt _) = True
+-- modIsPressed _ _ = False
 
 applyMods (ModShift p) = KeyEvent p KeyLeftShift
 applyMods (ModAlt p) = KeyEvent p KeyLeftAlt
