@@ -251,9 +251,13 @@ modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just 
 
 -- TODO: Account for last key and resume its context
 modifierSet oldGlobalMods (Release, (MyModifier (Modifier _ mods))) _ =
-  fromTargetGivenContext globalModsWithoutReleasedMod (mods ++ oldGlobalMods)
+  fromTargetGivenContext
+    globalModsWithoutReleasedMod
+    -- I believe adding mods like this isn't necessary
+    (mods ++ oldGlobalMods)
   where
-    globalModsWithoutReleasedMod = (filter (\a -> (elem a mods)) oldGlobalMods)
+    -- Remove the modifier from oldGlobalMods
+    globalModsWithoutReleasedMod = filter (\a -> (not (elem a mods))) oldGlobalMods
 
 modifierSet oldGlobalMods (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
   fromTargetGivenContext oldGlobalMods (mergeMods mods oldGlobalMods)
