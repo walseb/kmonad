@@ -432,9 +432,8 @@ conflictingModSwitch _ _ = Nothing
 --   applyMods <$> mods curr
 
 
-
-modDeleteDuplicates c = foldr
-                (\a b ->
+modDeleteDuplicates c = foldl
+                (\b a ->
                   if any (eqModAbstract a) b
                   then b
                   else (a : b))
