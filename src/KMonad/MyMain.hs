@@ -108,7 +108,7 @@ updateKeymap l list (KeyEvent s k) =
     update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
       let (keysReleased, newState, ev) = 
-            foldr
+            foldl
               fold
               ([], [], [])
               list
@@ -117,7 +117,7 @@ updateKeymap l list (KeyEvent s k) =
       where
         oldModState = concat $ modifier <$> (listOnlyMods list)
 
-        fold a@(k', a') (released, b, evs) = 
+        fold (released, b, evs) a@(k', a') = 
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
                         then (a : released, b, (fromMaybe [] (maybeGetRelease a')
@@ -159,7 +159,8 @@ updateKeymap l list (KeyEvent s k) =
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      foldr (\new@(_, new') (old, cmd) ->
+      -- TODO: Should we really use foldl here? We need to fold from the left
+      foldl (\(old, cmd) new@(_, new') ->
         (new : old,
           ((modifierSet oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
           -- If the key isn't a mod key, then apply the activation part
@@ -336,8 +337,8 @@ fromTargetGivenContext targetMods oldMods =
 
       inBothAndConflicting = modInBoth targetMods oldMods
         where
-          modInBoth c source = foldr
-                          (\a bs ->
+          modInBoth c source = foldl
+                          (\bs a ->
                             if any (\a' ->
                                        (eqModAbstract a a')
                                        && isSwitchConflicting (getSwitch a) (getSwitch a')) source
@@ -346,8 +347,8 @@ fromTargetGivenContext targetMods oldMods =
                           []
                           c
 
-      modNotIn c source = foldr
-                      (\a b ->
+      modNotIn c source = foldl
+                      (\b a ->
                         if any (eqModAbstract a) source
                         -- Don't add back if any is found in the source
                         then b
