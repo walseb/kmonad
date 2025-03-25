@@ -246,7 +246,7 @@ modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) Nothin
 modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
 
-modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier (Modifier _ mods'))) =
+modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier _)) =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
@@ -254,7 +254,7 @@ modifierSet oldGlobalMods (Release, (MyModifier (Modifier _ mods))) _ =
   fromTargetGivenContext
     globalModsWithoutReleasedMod
     -- I believe adding mods like this isn't necessary
-    (mods ++ oldGlobalMods)
+    oldGlobalMods
   where
     -- Remove the modifier from oldGlobalMods
     globalModsWithoutReleasedMod = filter (\a -> (not (elem a mods))) oldGlobalMods
@@ -324,29 +324,29 @@ fromTargetGivenContext targetMods oldMods =
     -- []
     -- [M Press]
     -- Release keys that don't exist in targetMods
-    ++ (applyMods <$> (catMaybes (disableMod <$> notInTarget)))
+    ++ (applyMods <$> (catMaybes (disableMod <$> orphanedKeys)))
     -- Handles presses of new keys
     -- [M Press]
     -- []
-    ++ (applyMods <$> notInOld)
+    ++ (applyMods <$> newKeys)
     -- ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
-      notInOld = modDeleteAbsDuplicatesFrom targetMods oldMods
-      notInTarget = modDeleteAbsDuplicatesFrom oldMods targetMods
+      newKeys = modNotIn targetMods oldMods
+      orphanedKeys = modNotIn oldMods targetMods
 
       inBothAndConflicting = modInBoth targetMods oldMods
         where
           modInBoth c source = foldr
-                          (\a b ->
-                            if any (\b ->
-                                       (eqModAbstract a b)
-                                       && isSwitchConflicting (getSwitch a) (getSwitch b)) source
-                            then (a : b)
-                            else b)
+                          (\a bs ->
+                            if any (\a' ->
+                                       (eqModAbstract a a')
+                                       && isSwitchConflicting (getSwitch a) (getSwitch a')) source
+                            then (a : bs)
+                            else bs)
                           []
                           c
 
-      modDeleteAbsDuplicatesFrom c source = foldr
+      modNotIn c source = foldr
                       (\a b ->
                         if any (eqModAbstract a) source
                         -- Don't add back if any is found in the source
