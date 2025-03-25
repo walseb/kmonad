@@ -29,6 +29,7 @@ import qualified System.IO.Unsafe
 
 import KMonad.MyTypes
 import Data.List
+import Data.Maybe (maybeToList)
 
 
 -- FIXME: This should live somewhere else
@@ -38,6 +39,10 @@ import System.Posix.Signals (Handler(Ignore), installHandler, sigCHLD)
 
 #endif
 
+
+headSafe :: [a] -> Maybe a
+headSafe []     = Nothing
+headSafe (a:as) = Just a
 
 initAppEnv :: HasLogFunc e => AppCfg -> ContT r (RIO e) AppEnv
 initAppEnv cfg = do
@@ -93,48 +98,83 @@ loop = do
     snk <- (view keySink)
     sequence $ (emitKey snk) <$> ev
 
-updateKeymap :: [Layer] -> [MyKeyComplete] -> KeyEvent -> ([MyKeyComplete], [KeyEvent])
+updateKeymap :: [Layer] -> [(RootKeycode, RootInput)] -> KeyEvent -> ([(RootKeycode, RootInput)], [KeyEvent])
 updateKeymap l list (KeyEvent s k) =
   let ke = KeyEvent s ((carpalxTranslationLayer l . hostnameTranslationLayer l currHostname) k)
   in update l list (k, ke)
   where
     -- Key release
     -- We need to release the original key because
-    update :: [Layer] -> [MyKeyComplete] -> (Keycode, KeyEvent) -> ([MyKeyComplete], [KeyEvent])
+    update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
-      foldr
-        (\a@(MyKeyComplete k' a') (b, evs) ->
-          if k' == kOrig
-          then (b, (modifiers trueContext a') ++ (release a') ++ evs)
-          -- Put back if no match
-          else ((a : b), evs))
-        ([], [])
-        list
-      -- construct <$> relevantEntries
+      let (keysReleased, newState, ev) = 
+            foldr
+              fold
+              ([], [], [])
+              list
+      in (newState, ev ++ modifierSet (listOnlyMods newState) (headSafe newState) (headSafe list))
 
       where
-        trueContext :: [MyKeyCommand]
-        trueContext = result <$> (filter (\(MyKeyComplete k _) -> ((k /= kOrig))) list)
+        fold (k', (MyModifier (Modifier _ _))) (released, b, evs) = undefined
+        fold a@(k', (MyKeyCommand a')) (released, b, evs) = 
+                        if k' == kOrig
+                        -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
+                        then (a : released, b, (release a' ++ evs))
+                        -- Put back if no match
+                        else (released, (a : b), evs)
 
-        -- relevantEntries :: [MyKeyCommand]
-        -- relevantEntries = filter (\ (MyKeyCommand k' _ _ _) -> k == k') list
+        -- listNoMods = catMaybes $ removeMod <$> list
+        --   where
+        --     removeMod (_, (MyKeyCommand a)) = Just a
+        --     removeMod (_, (MyModifier _)) = Nothing
+
+        listOnlyMods l = catMaybes $ removeKeys <$> l
+          where
+            removeKeys (k, (MyModifier a)) = Just a
+            removeKeys (_, (MyKeyCommand a)) = Nothing
+
+        listNoMods l = catMaybes $ removeMod <$> l
+          where
+            removeMod (k, (MyKeyCommand a)) = Just (k, a)
+            removeMod (_, (MyModifier _)) = Nothing
+
+        -- updatedContext :: [MyKeyCommand]
+        -- updatedContext = result <$> (filter (\(RootKeycode k _) -> ((k /= kOrig))) list)
+
+        -- foundKeys
 
         -- construct entr@(MyKeyCommand k _ _ _) =
         --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
         --     release entr)]
 
-        modifiers c entr = modifierSet c (Release, entr)
+        -- modifiers c entr = modifierSet ((mods . result) <$> c) (Release, entr)
 
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      foldr (\new@(MyKeyComplete _ new') (old, cmd) -> (new : old, ((modifiers (result <$> old) new') ++ (activation new') ++ cmd))) (list, []) newEntries
+      foldr (\new@(_, new') (old, cmd) ->
+        (new : old,
+          ((modifierSet newModifiers (removeMod new) (headSafe (listNoMods list)))
+          -- If the key isn't a mod key, then apply the activation part
+          ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          ++ cmd)))
+        (list, [])
+        newEntries
         where
-          newEntries :: [MyKeyComplete]
-          newEntries = (MyKeyComplete kOrig) <$> (translationLayer currHostname layer list (concat ((mods . result) <$> list)) kOrig k)
-          modifiers c new = modifierSet c (Press, new)
+          newEntries :: [(RootKeycode, RootInput)]
+          newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
+          newModifiers = listOnlyMods newEntries
 
-keyMap :: MVar [MyKeyComplete]
+          listOnlyMods l = catMaybes $ removeKeys <$> l
+            where
+              removeKeys (k, (MyModifier a)) = Just a
+              removeKeys (_, (MyKeyCommand a)) = Nothing
+
+          listNoMods l = catMaybes $ removeMod <$> l
+          removeMod (k, (MyKeyCommand a)) = Just (k, a)
+          removeMod (_, (MyModifier _)) = Nothing
+
+keyMap :: MVar [(RootKeycode, RootInput)]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
@@ -176,42 +216,76 @@ fn ev = do
 
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 
-modifierSet c (Release, curr) =
-  -- If the key request is unique, just release it
-  (concat (deleteRequirement <$> unique))
-    -- If the key request isn't unique, then apply the
-    ++ (applyMods <$> nonUnique)
-  where
-    cMod = concat $ mods <$> c
-    unique = filter (\a -> not (any (eqMod a) cMod)) (mods curr)
+-- Some other key might be pressed just before this is pressed
+-- Only on press, activate everything it needs and deactivate everything it doesn't need. We know what do deactivate as it's shown in the
 
-    nonUnique = filter (\a -> any (eqMod a) (mods curr)) cMod
+modifierSet :: [MyModifiersRequested] -> Maybe (RootKeycode, RootInput) -> Maybe (RootKeycode, RootInput) -> [KeyEvent]
+modifierSet newGlobalMods (Just (k, (MyModifier (Modifier _ _)))) _ =
+  applyMods <$> newGlobalMods
 
-    deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
-    deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
-    deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
-    deleteRequirement (ModRAlt Press) = [KeyEvent Release KeyRightAlt]
-    deleteRequirement _ = []
+modifierSet newGlobalMods (Just (k, _)) (Just (k', _)) | k == k' =
+  []
+
+modifierSet newGlobalMods Nothing (Just (k', (KeyCommand _ _ _ mods))) =
+  undefined  
+
+modifierSet newGlobalMods newTop oldTop =
+  undefined
+  -- where
+  --   notInNew = mods
+-- modifierSet c (Press, curr) =
+--   -- Apply the new mods that are required
+--   applyMods <$> unique
+--   -- (concat (deleteRequirement <$> unique))
+--   --   -- If the key request isn't unique, then apply the
+--   --   ++ (applyMods <$> nonUnique)
+
+--   where
+--     -- cMod = concat $ mods <$> c
+--     -- Modifiers not found anywhere in the context
+--     unique = filter (\a -> not (any (eqModAbstract a) c)) (mods curr)
+
+--     -- -- Modifiers found in the the context already
+--     -- nonUnique = filter (\a -> any (eqModAbstract a) (mods curr)) cMod
+
+--     -- Modifiers that are outdated in the context
+--     outdated = filter (\a -> not (any ((==) a) cMod)) (mods curr)
+
+-- modifierSet c (Release, curr) =
+--   -- If the key request is unique, just release it
+--   (concat (deleteRequirement <$> unique))
+--     -- If the key request isn't unique, then apply the
+--     ++ (applyMods <$> nonUnique)
+--   where
+--     cMod = concat $ mods <$> c
+--     unique = filter (\a -> not (any (eqModAbstract a) cMod)) (mods curr)
+
+--     nonUnique = filter (\a -> any (eqModAbstract a) (mods curr)) cMod
+
+--     deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
+--     deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
+--     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
+--     deleteRequirement (ModRAlt Press) = [KeyEvent Release KeyRightAlt]
+--     deleteRequirement _ = []
 
     -- nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
 
-modifierSet _ (Press, curr) =
-  applyMods <$> mods curr
+-- modifierSet _ (Press, curr) =
+--   applyMods <$> mods curr
 
 modDeleteDuplicates c = foldr
                 (\a b ->
-                  if any (eqMod a) b
+                  if any (eqModAbstract a) b
                   then b
                   else (a : b))
                 []
                 c
 
-eqMod (ModShift _) (ModShift _) = True
-eqMod (ModAlt _) (ModAlt _) = True
-eqMod (ModCtrl _) (ModCtrl _) = True
-eqMod (ModRAlt _) (ModRAlt _) = True
-eqMod _ _ = False
-
+eqModAbstract (ModShift _) (ModShift _) = True
+eqModAbstract (ModAlt _) (ModAlt _) = True
+eqModAbstract (ModCtrl _) (ModCtrl _) = True
+eqModAbstract (ModRAlt _) (ModRAlt _) = True
+eqModAbstract _ _ = False
 
 applyMods (ModShift p) = KeyEvent p KeyLeftShift
 applyMods (ModAlt p) = KeyEvent p KeyLeftAlt
@@ -229,18 +303,23 @@ mapMod f (ModRAlt p) = ModRAlt (f p)
 data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
   deriving (Eq, Show)
 
-data MyKeyComplete = MyKeyComplete
-  {
-    origKey :: Keycode
-    , result :: MyKeyCommand
-  }
+type RootKeycode = Keycode
 
 -- Keycode that's being pressed (input) + way to undo it.
-data MyKeyCommand = MyKeyCommand {
+data RootInput = MyKeyCommand KeyCommand | MyModifier Modifier
+  deriving (Eq, Show)
+
+data KeyCommand = KeyCommand {
   rawKey :: Keycode
   , activation :: [KeyEvent]
   , release :: [KeyEvent]
   , mods :: [MyModifiersRequested]
+  }
+  deriving (Eq, Show)
+
+data Modifier = Modifier {
+  modRawKey :: Keycode
+  , modifier :: [MyModifiersRequested]
   }
   deriving (Eq, Show)
 
@@ -268,7 +347,7 @@ findLayerRaw _ = False
 findLayerSteno Steno = True
 findLayerSteno _ = False
 
-translationLayer :: String -> [Layer] -> [MyKeyComplete] -> [MyModifiersRequested] -> Keycode -> Keycode -> [MyKeyCommand]
+translationLayer :: String -> [Layer] -> [(RootKeycode, RootInput)] -> [MyModifiersRequested] -> Keycode -> Keycode -> [RootInput]
 translationLayer hostname layer last mod kOrig k =
   fromMaybe [] $ translationLayer' layer mod kOrig k
 
@@ -321,29 +400,25 @@ translationLayer hostname layer last mod kOrig k =
 -- _      @1     @2     @3    @4      @5     @6     @7     @8     @9     @0     @-     _
 -- _      _      _      _      _      _      _      @å     @ä     @ö     _      _
 keyCommand k k' mod =
-  MyKeyCommand
+  MyKeyCommand $ KeyCommand
     k
     [KeyEvent Press k']
     [KeyEvent Release k']
     mod
 
 keyCommandTap k k' mod =
-  MyKeyCommand
+  MyKeyCommand $ KeyCommand
     k
     [(KeyEvent Press k'), (KeyEvent Release k')]
     []
     mod
 
 keyMod k mod =
-  MyKeyCommand
-    k
-    []
-    []
-    mod
+  MyModifier $ Modifier k mod
 
 list a = [a]
 
-altTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+altTranslationLayer :: Keycode -> Maybe [RootInput]
 altTranslationLayer k@KeyQ = Just $ list $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyG = Just $ list $ keyCommand k Key2 [(ModShift Press), (ModAlt Release)]
 altTranslationLayer k@KeyM = Just $ list $ keyCommand k Key3 [(ModShift Press), (ModAlt Release)]
@@ -372,33 +447,34 @@ altTranslationLayer k@KeyEnter = Just $ list $ keyCommand k KeyEqual [(ModAlt Re
 
 -- åäö
 -- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
-altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModShift Release), (ModRAlt Press)])]
+-- https://www.x.org/releases/current/doc/libX11/i18n/compose/en_US.UTF-8.html
+altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)])]
 altTranslationLayer k@KeyComma = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 altTranslationLayer k@KeyDot = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 
 altTranslationLayer _ = Nothing
 
-altCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+altCtrlTranslationLayer :: Keycode -> Maybe [RootInput]
 altCtrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
-rootTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootTranslationLayer :: Keycode -> Maybe [RootInput]
 rootTranslationLayer k@KeyTab = Just $ list $ keyCommand k KeyF12 []
 rootTranslationLayer _ = Nothing
 
-rootCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+rootCtrlTranslationLayer :: Keycode -> Maybe [RootInput]
 rootCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModCtrl Release)]
 rootCtrlTranslationLayer _ = Nothing
 
-exwmCtrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+exwmCtrlTranslationLayer :: Keycode -> Maybe [RootInput]
 exwmCtrlTranslationLayer _ = Nothing
 
-stenoLayer :: [MyKeyComplete] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [MyKeyCommand]
+stenoLayer :: [(RootKeycode, RootInput)] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [RootInput]
 -- Handle pressing C-e. K here would be E in a Carpalx layout
 stenoLayer last _mod "desktop" k@KeyK _ =
-  if length last == 1 && (any ((==) KeyCapsLock) (origKey <$> last))
+  if length last == 1 && (any ((==) KeyCapsLock) (fst <$> last))
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
 -- For other machines that don't rebind ctrl, if Ctrl is pressed down and you press what would be 'e' in Carpalx, exit state
@@ -414,7 +490,7 @@ stenoLayer _ _ _ _ _ = Nothing
 --  _      _      _      _      _      _      _      @ret   _      _      _      _      _
 --  _      _      _      _      _      _      _      _      _      _      _      _
 --  _   _      _             _                           _      _      _      _
-ctrlTranslationLayer :: Keycode -> Maybe [MyKeyCommand]
+ctrlTranslationLayer :: Keycode -> Maybe [RootInput]
 ctrlTranslationLayer k@KeyGrave = Just $ list $ keyCommand k KeyCapsLock [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModCtrl Release)]
 ctrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModCtrl Release)]
