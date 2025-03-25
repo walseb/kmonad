@@ -315,30 +315,49 @@ fromTargetGivenContext targetMods oldMods =
   -- Handles changes in same symbols
   -- [M Release]
   -- [M Press]
-  (applyMods <$> (modDeleteDuplicates (catMaybes (conflictingModSwitch <$> targetMods <*> oldMods))))
-    -- Handles releasese of removed keys
+  (applyMods <$> inBothAndConflicting)
+    -- Handles releases of removed keys
     -- []
     -- [M Press]
     -- Release keys that don't exist in targetMods
-    ++ (applyMods <$> (catMaybes (disableMod <$> modDeleteAbsNonDuplicatesFrom oldMods targetMods)))
+    ++ (applyMods <$> (catMaybes (disableMod <$> notInTarget)))
     -- Handles presses of new keys
-    ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
+    -- [M Press]
+    -- []
+    ++ (applyMods <$> notInOld)
+    -- ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
+      notInOld = modDeleteAbsDuplicatesFrom targetMods oldMods
+      notInTarget = modDeleteAbsDuplicatesFrom oldMods targetMods
+
+      inBothAndConflicting = modInBoth targetMods oldMods
+        where
+          modInBoth c source = foldr
+                          (\a b ->
+                            if any (\b ->
+                                       (eqModAbstract a b)
+                                       && isSwitchConflicting (getSwitch a) (getSwitch b)) source
+                            then (a : b)
+                            else b)
+                          []
+                          c
+
       modDeleteAbsDuplicatesFrom c source = foldr
                       (\a b ->
                         if any (eqModAbstract a) source
+                        -- Don't add back if any is found in the source
                         then b
                         else (a : b))
                       []
                       c
 
-      modDeleteAbsNonDuplicatesFrom c source = foldr
-                      (\a b ->
-                        if any (not . (eqModAbstract a)) source
-                        then b
-                        else (a : b))
-                      []
-                      c
+      -- modDeleteAbsNonDuplicatesFrom c source = foldr
+      --                 (\a b ->
+      --                   if any (eqModAbstract a) source
+      --                   then (a : b)
+      --                   else b)
+      --                 []
+      --                 c
 
 disableMod (ModShift Press) = Just (ModShift Release)
 disableMod (ModAlt Press) = Just (ModAlt Release)
@@ -348,6 +367,10 @@ disableMod (ModShift Release) = Nothing
 disableMod (ModAlt Release) = Nothing
 disableMod (ModCtrl Release) = Nothing
 disableMod (ModRAlt Release) = Nothing
+
+isSwitchConflicting Press Release = True
+isSwitchConflicting Release Press = True
+isSwitchConflicting _ _ = False
 
 -- If you have two modifiers, what needs to be changed?
 -- The first mod has presedence.
@@ -434,6 +457,11 @@ applyMods (ModRAlt p) = KeyEvent p KeyRightAlt
 
 revSwitch Press = Release
 revSwitch Release = Press
+
+getSwitch (ModShift p)  = p
+getSwitch (ModAlt p) = p
+getSwitch (ModCtrl p) = p
+getSwitch (ModRAlt p) = p
 
 mapMod f (ModShift p)  = ModShift (f p)
 mapMod f (ModAlt p) = ModAlt (f p)
