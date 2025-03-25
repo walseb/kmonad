@@ -301,7 +301,7 @@ mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersReq
 mergeMods major minor =
   modDeleteDuplicates $ major ++ minor
 
--- [M Release]
+-- []
 -- [M Press]
 
 
@@ -312,14 +312,29 @@ mergeMods major minor =
 -- Apply only the keys in targetMods that don't exist EXACTLYL in oldMods
 fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
 fromTargetGivenContext targetMods oldMods = 
-  -- Release any that are conflicting
+  -- Handles changes in same symbols
+  -- [M Release]
+  -- [M Press]
   (applyMods <$> (modDeleteDuplicates (catMaybes (conflictingModSwitch <$> targetMods <*> oldMods))))
-  -- Press the keys that don't exist in the oldMods. This is needed because the conflict one exludes ones that aren't in the oldMods
+    -- Handles releasese of removed keys
+    -- []
+    -- [M Press]
+    -- Release keys that don't exist in targetMods
+    ++ (applyMods <$> (catMaybes (disableMod <$> modDeleteAbsNonDuplicatesFrom oldMods targetMods)))
+    -- Handles presses of new keys
     ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
       modDeleteAbsDuplicatesFrom c source = foldr
                       (\a b ->
                         if any (eqModAbstract a) source
+                        then b
+                        else (a : b))
+                      []
+                      c
+
+      modDeleteAbsNonDuplicatesFrom c source = foldr
+                      (\a b ->
+                        if any (not . (eqModAbstract a)) source
                         then b
                         else (a : b))
                       []
