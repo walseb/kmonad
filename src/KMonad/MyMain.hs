@@ -263,12 +263,14 @@ modifierSet c oldGlobalMods (Release, (MyModifier (Modifier _ m))) _ =
     toList (Just a) = [a]
     toList Nothing = []
 
+    -- isFoundAmongContext = (fromMaybe [] (mods <$> (findRootKey c)))
+
 modifierSet c oldGlobalMods (Release, key@(MyKeyCommand (KeyCommand _ _ _ mods))) _ =
   fromTargetGivenContext
     (mergeMods (lToRootKey cNoKey) oldGlobalMods)
     (mergeMods mods oldGlobalMods)
   where
-    cNoKey = filter ((==) key) c
+    cNoKey = filter ((/=) key) c
 
 lToRootKey c = (fromMaybe [] (headSafe (mods <$> (findRootKey c))))
 
