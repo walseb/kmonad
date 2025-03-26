@@ -265,7 +265,7 @@ modifierSet c oldGlobalMods (Release, (MyModifier (Modifier _ m))) _ =
 
 modifierSet c oldGlobalMods (Release, key@(MyKeyCommand (KeyCommand _ _ _ mods))) _ =
   fromTargetGivenContext
-    (oldGlobalMods ++ lToRootKey cNoKey)
+    (mergeMods (lToRootKey cNoKey) oldGlobalMods)
     (mergeMods mods oldGlobalMods)
   where
     cNoKey = filter ((==) key) c
