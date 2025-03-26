@@ -663,8 +663,7 @@ exwmCtrlTranslationLayer _ = Nothing
 stenoLayer :: [(RootKeycode, RootInput)] -> [MyModifiersRequested] -> String -> Keycode -> Keycode -> Maybe [RootInput]
 -- Handle pressing C-e. K here would be E in a Carpalx layout
 stenoLayer last _mod "desktop" k@KeyK _ =
--- length last == 1 && 
-  if (any ((==) KeyCapsLock) (fst <$> last))
+  if length last == 1 && (any ((==) KeyCapsLock) (fst <$> last))
   then Just $ list $ keyCommand k KeyE [(ModCtrl Press)]
   else Nothing
 -- For other machines that don't rebind ctrl, if Ctrl is pressed down and you press what would be 'e' in Carpalx, exit state
