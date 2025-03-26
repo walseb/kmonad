@@ -107,7 +107,7 @@ updateKeymap l list (KeyEvent s k) =
     -- We need to release the original key because
     update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
-      let (keysReleased, newState, ev) = 
+      let (keysReleased, newState, ev) =
             foldl
               fold
               ([], [], [])
@@ -117,20 +117,20 @@ updateKeymap l list (KeyEvent s k) =
       where
         oldModState = concat $ modifier <$> (listOnlyMods list)
 
-        fold (released, b, evs) a@(k', a') = 
+        fold (released, b, evs) a@(k', a') =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
                         then (released ++ [a], b, (fromMaybe [] (maybeGetRelease a')
                           ++ evs
                           -- So releases don't need a last key
-                          ++ modifierSet oldModState (Release, snd a) Nothing))
+                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing))
                         -- Put back if no match
                         else (released, (b ++ [a]), evs)
           where
             maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
             maybeGetRelease _ = Nothing
 
-        -- listNoMods = catMaybes $ removeMod <$> list
+        -- listOnlyKeys = catMaybes $ removeMod <$> list
         --   where
         --     removeMod (_, (MyKeyCommand a)) = Just a
         --     removeMod (_, (MyModifier _)) = Nothing
@@ -140,7 +140,7 @@ updateKeymap l list (KeyEvent s k) =
             removeKeys (k, (MyModifier a)) = Just a
             removeKeys (_, (MyKeyCommand a)) = Nothing
 
-        listNoMods l = catMaybes $ removeMod <$> l
+        listOnlyKeys l = catMaybes $ removeMod <$> l
           where
             removeMod (k, (MyKeyCommand a)) = Just (k, a)
             removeMod (_, (MyModifier _)) = Nothing
@@ -162,7 +162,7 @@ updateKeymap l list (KeyEvent s k) =
       -- TODO: Should we really use foldl here? We need to fold from the left
       foldl (\(old, cmd) new@(_, new') ->
         (old ++ [new],
-          ((modifierSet oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
+          ((modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
           -- If the key isn't a mod key, then apply the activation part
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
           ++ cmd)))
@@ -179,7 +179,7 @@ updateKeymap l list (KeyEvent s k) =
               removeKeys (k, (MyModifier a)) = Just a
               removeKeys (_, (MyKeyCommand a)) = Nothing
 
-          listNoMods l = catMaybes $ removeMod <$> l
+          listOnlyKeys l = catMaybes $ removeMod <$> l
           removeMod (k, (MyKeyCommand a)) = Just (k, a)
           removeMod (_, (MyModifier _)) = Nothing
 
@@ -233,36 +233,51 @@ mapKey f (KeyEvent p k) = (KeyEvent p (f k))
 -- {-# NOINLINE overlayModState #-}
 
 -- The non-global mods need to be thrown out as soon as a new key not requiring them is pressed
-modifierSet :: [MyModifiersRequested] -> (Switch, RootInput) -> Maybe RootInput -> [KeyEvent]
+modifierSet :: [RootInput] -> [MyModifiersRequested] -> (Switch, RootInput) -> Maybe RootInput -> [KeyEvent]
 
-modifierSet oldGlobalMods (Press, (MyModifier (Modifier _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
-  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
+modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
 
-modifierSet oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
-  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods 
-
-modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) Nothing =
+modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
-modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
-  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods) 
+modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) Nothing =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
-modifierSet oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier _)) =
+modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
+  fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
+
+modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier _)) =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
-modifierSet oldGlobalMods (Release, (MyModifier (Modifier _ mods))) _ =
+modifierSet c oldGlobalMods (Release, (MyModifier (Modifier _ m))) _ =
   fromTargetGivenContext
+    -- Hmm, we probably shouldn't change much if a modifier is released. To know what to really do in this situation
     globalModsWithoutReleasedMod
     -- I believe adding mods like this isn't necessary
     oldGlobalMods
   where
     -- Remove the modifier from oldGlobalMods
-    globalModsWithoutReleasedMod = filter (\a -> (not (elem a mods))) oldGlobalMods
+    globalModsWithoutReleasedMod = filter (\a -> (not (elem a m))) oldGlobalMods
+    toList (Just a) = [a]
+    toList Nothing = []
 
-modifierSet oldGlobalMods (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
-  fromTargetGivenContext oldGlobalMods (mergeMods mods oldGlobalMods)
-  
+modifierSet c oldGlobalMods (Release, key@(MyKeyCommand (KeyCommand _ _ _ mods))) _ =
+  fromTargetGivenContext
+    (oldGlobalMods ++ lToRootKey cNoKey)
+    (mergeMods mods oldGlobalMods)
+  where
+    cNoKey = filter ((==) key) c
+
+lToRootKey c = (fromMaybe [] (headSafe (mods <$> (findRootKey c))))
+
+findRootKey as = catMaybes $ rootToKey <$> as
+
+rootToKey (MyKeyCommand a) = Just a
+rootToKey (MyModifier _) = Nothing
+
+
 -- modifierSet _ (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
 --   applyMods <$> mods
 
@@ -289,8 +304,8 @@ modifierSet oldGlobalMods (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
 --   applyMods <$> mods
 
 -- -- modifierSet newGlobalMods Nothing (Just (k', (KeyCommand _ _ _ mods))) =
--- --   undefined  
--- --e 
+-- --   undefined
+-- --e
 -- -- If new key is a key, and last key was a modifier, we only need to apply the difference
 -- modifierSet _ (Just (_, (MyKeyCommand (KeyCommand _ _ _ mods)))) (Just (_, (MyModifier (Modifier _ _)))) =
 --   applyMods <$> mods
@@ -316,7 +331,7 @@ mergeMods major minor =
 -- Finds and removes orphaned mods
 -- Apply only the keys in targetMods that don't exist EXACTLYL in oldMods
 fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
-fromTargetGivenContext targetMods oldMods = 
+fromTargetGivenContext targetMods oldMods =
   -- Handles changes in same symbols
   -- [M Release]
   -- [M Press]
