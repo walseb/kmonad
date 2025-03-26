@@ -251,19 +251,19 @@ modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Jus
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
-modifierSet c oldGlobalMods (Release, (MyModifier (Modifier _ m))) _ =
-  fromTargetGivenContext
-    -- Hmm, we probably shouldn't change much if a modifier is released. To know what to really do in this situation
-    globalModsWithoutReleasedMod
-    -- I believe adding mods like this isn't necessary
-    oldGlobalMods
+modifierSet c oldGlobalMods (Release, key@(MyModifier (Modifier _ m))) _ =
+  -- If a mod is released, we only need to change the modifiers being held if the mod released isn't required anywhere in the context.
+  -- If it is required for any reason anywhere in the (key, not mod) context, then simply do nothing. Those other keys will release the mod eventually
+  applyMods <$> isFoundAmongContext
   where
     -- Remove the modifier from oldGlobalMods
     globalModsWithoutReleasedMod = filter (\a -> (not (elem a m))) oldGlobalMods
     toList (Just a) = [a]
     toList Nothing = []
 
-    -- isFoundAmongContext = (fromMaybe [] (mods <$> (findRootKey c)))
+    isFoundAmongContext = if isJust (find (\a -> elem a m) (concat (mods <$> (findRootKey c))))
+      then []
+      else catMaybes (disableMod <$> m)
 
 modifierSet c oldGlobalMods (Release, key@(MyKeyCommand (KeyCommand _ _ _ mods))) _ =
   fromTargetGivenContext
