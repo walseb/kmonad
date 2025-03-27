@@ -111,7 +111,7 @@ updateKeymap l list (KeyEvent s k) =
             foldr
               fold
               ([], [], [])
-              (reverse list)
+              list
       in (newState, ev)
 
       where
@@ -120,10 +120,12 @@ updateKeymap l list (KeyEvent s k) =
         fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then ([a] : released, b, (fromMaybe [] (maybeGetRelease a')
-                          ++ evs
+                        then (a : released, b,
+                          (fromMaybe [] (maybeGetRelease a'))
                           -- So releases don't need a last key
-                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing))
+                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ evs
+                          )
                         -- Put back if no match
                         else (released, (a : b), evs)
           where
