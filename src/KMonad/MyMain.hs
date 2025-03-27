@@ -121,11 +121,10 @@ updateKeymap l list (KeyEvent s k) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
                         then (a : released, b,
+                          -- We do this last after the modifiers have been pressed
                           (fromMaybe [] (maybeGetRelease a'))
-                          -- So releases don't need a last key
                           ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
-                          ++ evs
-                          )
+                          ++ evs)
                         -- Put back if no match
                         else (released, (a : b), evs)
           where
@@ -161,13 +160,13 @@ updateKeymap l list (KeyEvent s k) =
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      -- TODO: Should we really use foldl here? We need to fold from the left
       foldr (\new@(_, new') (old, cmd) ->
-        (new : old,
-          ((modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
+        (new : old, 
           -- If the key isn't a mod key, then apply the activation part
-          ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
-          ++ cmd)))
+          -- This is in reverse order, so do this last 
+          (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          ++ (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
+          ++ cmd))
         (list, [])
         newEntries
         where
@@ -452,13 +451,13 @@ conflictingModSwitch _ _ = Nothing
 --   applyMods <$> mods curr
 
 
-modDeleteDuplicates c = foldl
-                (\b a ->
+modDeleteDuplicates c = reverse $ foldr
+                (\a b ->
                   if any (eqModAbstract a) b
                   then b
-                  else (b ++ [a]))
+                  else (a : b))
                 []
-                c
+                (reverse c)
 
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
@@ -636,10 +635,9 @@ altTranslationLayer k@KeyH = Just $ list $ keyCommand k Key0 [(ModAlt Release)]
 altTranslationLayer k@KeyApostrophe = Just $ list $ keyCommand k KeyMinus [(ModAlt Release)]
 altTranslationLayer k@KeyEnter = Just $ list $ keyCommand k KeyEqual [(ModAlt Release)]
 
--- åäö
 -- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
 -- https://www.x.org/releases/current/doc/libX11/i18n/compose/en_US.UTF-8.html
-altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)])]
+altTranslationLayer k@KeyP = Just $ [(keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)])]
 altTranslationLayer k@KeyComma = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 altTranslationLayer k@KeyDot = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 
