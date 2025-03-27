@@ -121,10 +121,11 @@ updateKeymap l list (KeyEvent s k) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
                         then (a : released, b,
+                          evs
                           -- We do this last after the modifiers have been pressed
-                          modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
                           ++ (fromMaybe [] (maybeGetRelease a'))
-                          ++ evs)
+                          )
                         -- Put back if no match
                         else (released, (a : b), evs)
           where
@@ -164,9 +165,10 @@ updateKeymap l list (KeyEvent s k) =
         (new : old, 
           -- If the key isn't a mod key, then apply the activation part
           -- This is in reverse order, so do this last 
-          (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          cmd
           ++ (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
-          ++ cmd))
+          ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          ))
         (list, [])
         newEntries
         where
