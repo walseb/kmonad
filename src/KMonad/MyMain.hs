@@ -111,7 +111,7 @@ updateKeymap l list (KeyEvent s k) =
             foldr
               fold
               ([], [], [])
-              list
+              (reverse list)
       in (newState, ev)
 
       where
@@ -120,14 +120,15 @@ updateKeymap l list (KeyEvent s k) =
         fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then (a : released, b,
+                        then (released ++ [a], b,
                           evs
-                          -- We do this last after the modifiers have been pressed
-                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          -- First release key
                           ++ (fromMaybe [] (maybeGetRelease a'))
+                          -- Then release modifiers
+                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
                           )
                         -- Put back if no match
-                        else (released, (a : b), evs)
+                        else (released, (b ++ [a]), evs)
           where
             maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
             maybeGetRelease _ = Nothing
@@ -166,11 +167,13 @@ updateKeymap l list (KeyEvent s k) =
           -- If the key isn't a mod key, then apply the activation part
           -- This is in reverse order, so do this last 
           cmd
+          -- First press the modifiers
           ++ (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
+          -- Then press the key, if it's a key
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
           ))
         (list, [])
-        newEntries
+        (reverse newEntries)
         where
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
@@ -639,7 +642,8 @@ altTranslationLayer k@KeyEnter = Just $ list $ keyCommand k KeyEqual [(ModAlt Re
 
 -- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
 -- https://www.x.org/releases/current/doc/libX11/i18n/compose/en_US.UTF-8.html
-altTranslationLayer k@KeyP = Just $ [(keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)])]
+-- å == oa
+altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)])]
 altTranslationLayer k@KeyComma = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 altTranslationLayer k@KeyDot = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
 
