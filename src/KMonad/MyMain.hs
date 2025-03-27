@@ -111,7 +111,7 @@ updateKeymap l list (KeyEvent s k) =
             foldr
               fold
               ([], [], [])
-              list
+              (reverse list)
       in (newState, ev)
 
       where
