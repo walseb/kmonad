@@ -108,7 +108,7 @@ updateKeymap l list (KeyEvent s k) =
     update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
       let (keysReleased, newState, ev) =
-            foldl
+            foldr
               fold
               ([], [], [])
               list
@@ -117,15 +117,15 @@ updateKeymap l list (KeyEvent s k) =
       where
         oldModState = concat $ modifier <$> (listOnlyMods list)
 
-        fold (released, b, evs) a@(k', a') =
+        fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then (released ++ [a], b, (fromMaybe [] (maybeGetRelease a')
+                        then ([a] : released, b, (fromMaybe [] (maybeGetRelease a')
                           ++ evs
                           -- So releases don't need a last key
                           ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing))
                         -- Put back if no match
-                        else (released, (b ++ [a]), evs)
+                        else (released, (a : b), evs)
           where
             maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
             maybeGetRelease _ = Nothing
@@ -160,8 +160,8 @@ updateKeymap l list (KeyEvent s k) =
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       -- TODO: Should we really use foldl here? We need to fold from the left
-      foldl (\(old, cmd) new@(_, new') ->
-        (old ++ [new],
+      foldr (\new@(_, new') (old, cmd) ->
+        (new : old,
           ((modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
           -- If the key isn't a mod key, then apply the activation part
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
