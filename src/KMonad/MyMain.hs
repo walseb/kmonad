@@ -122,8 +122,8 @@ updateKeymap l list (KeyEvent s k) =
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
                         then (a : released, b,
                           -- We do this last after the modifiers have been pressed
-                          (fromMaybe [] (maybeGetRelease a'))
-                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ (fromMaybe [] (maybeGetRelease a'))
                           ++ evs)
                         -- Put back if no match
                         else (released, (a : b), evs)
@@ -451,13 +451,13 @@ conflictingModSwitch _ _ = Nothing
 --   applyMods <$> mods curr
 
 
-modDeleteDuplicates c = reverse $ foldr
-                (\a b ->
+modDeleteDuplicates c = foldl
+                (\b a ->
                   if any (eqModAbstract a) b
                   then b
-                  else (a : b))
+                  else (b ++ [a]))
                 []
-                (reverse c)
+                c
 
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
