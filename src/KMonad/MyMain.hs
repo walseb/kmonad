@@ -111,7 +111,7 @@ updateKeymap l list (KeyEvent s k) =
             foldr
               fold
               ([], [], [])
-              (reverse list)
+              list
       in (newState, ev)
 
       where
@@ -120,15 +120,18 @@ updateKeymap l list (KeyEvent s k) =
         fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                        then (released ++ [a], b,
-                          evs
+                          
+                        -- We are going in reverse.
+                        then (a : released, b, 
+                          -- Since this is the oldest key, run its actions first
                           -- First release key
                           ++ (fromMaybe [] (maybeGetRelease a'))
                           -- Then release modifiers
                           ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ evs
                           )
                         -- Put back if no match
-                        else (released, (b ++ [a]), evs)
+                        else (released, (a : b), evs)
           where
             maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
             maybeGetRelease _ = Nothing
@@ -162,18 +165,18 @@ updateKeymap l list (KeyEvent s k) =
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      foldr (\new@(_, new') (old, cmd) ->
-        (new : old, 
-          -- If the key isn't a mod key, then apply the activation part
-          -- This is in reverse order, so do this last 
-          cmd
+      foldr (\ new@(_, new') (old, cmd) ->
+        (new : old,
+          -- Since this is the oldest key, run its actions first
           -- First press the modifiers
-          ++ (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old)))
+          (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this. 
           -- Then press the key, if it's a key
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          -- This is going from the oldest of the new keys to press first
+          ++ cmd
           ))
         (list, [])
-        (reverse newEntries)
+        newEntries
         where
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
@@ -183,7 +186,7 @@ updateKeymap l list (KeyEvent s k) =
           listOnlyMods l = catMaybes $ removeKeys <$> l
             where
               removeKeys (k, (MyModifier a)) = Just a
-              removeKeys (_, (MyKeyCommand a)) = Nothing
+              removeKeys (_, (MyKeyCommand _)) = Nothing
 
           listOnlyKeys l = catMaybes $ removeMod <$> l
           removeMod (k, (MyKeyCommand a)) = Just (k, a)
@@ -247,13 +250,10 @@ modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) (Just (MyKey
 modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
-modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) Nothing =
-  fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
-
 modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
 
-modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyModifier _)) =
+modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
@@ -329,6 +329,15 @@ mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersReq
 mergeMods major minor =
   modDeleteDuplicates $ major ++ minor
 
+  where
+    modDeleteDuplicates c = foldl
+                    (\b a ->
+                      if any (eqModAbstract a) b
+                      then b
+                      else (b ++ [a]))
+                    []
+                    c
+
 -- []
 -- [M Press]
 
@@ -343,7 +352,7 @@ fromTargetGivenContext targetMods oldMods =
   -- Handles changes in same symbols
   -- [M Release]
   -- [M Press]
-  (applyMods <$> inBothAndConflicting)
+  (applyMods <$> (inBothAndConflicting targetMods oldMods))
     -- Handles releases of removed keys
     -- []
     -- [M Press]
@@ -358,26 +367,14 @@ fromTargetGivenContext targetMods oldMods =
       newKeys = modNotIn targetMods oldMods
       orphanedKeys = modNotIn oldMods targetMods
 
-      inBothAndConflicting = modInBoth targetMods oldMods
-        where
-          modInBoth c source = foldr
-                          (\a bs ->
-                            if any (\a' ->
-                                       (eqModAbstract a a')
-                                       && isSwitchConflicting (getSwitch a) (getSwitch a')) source
-                            then (a : bs)
-                            else bs)
-                          []
-                          c
+      inBothAndConflicting c source = filter (\a -> (any (isJust . (conflictingModSwitch a)) source)) c
 
-      modNotIn c source = foldr
-                      (\a b ->
-                        if any (eqModAbstract a) source
-                        -- Don't add back if any is found in the source
-                        then b
-                        else (a : b))
-                      []
-                      c
+      -- If you have two modifiers, what needs to be changed?
+      -- The first mod has presedence.
+      conflictingModSwitch k k' | eqModAbstract k k' && (getSwitch k) /= (getSwitch k') = Just k
+      conflictingModSwitch _ _ = Nothing
+
+      modNotIn c source = filter (\a -> not (any (eqModAbstract a) source)) c
 
       -- modDeleteAbsNonDuplicatesFrom c source = foldr
       --                 (\a b ->
@@ -396,22 +393,8 @@ disableMod (ModAlt Release) = Nothing
 disableMod (ModCtrl Release) = Nothing
 disableMod (ModRAlt Release) = Nothing
 
-isSwitchConflicting Press Release = True
-isSwitchConflicting Release Press = True
-isSwitchConflicting _ _ = False
+-- isSwitchConflicting k k' = k /= k'
 
--- If you have two modifiers, what needs to be changed?
--- The first mod has presedence.
-conflictingModSwitch (ModShift s) (ModShift s') | s' == s = Nothing
-conflictingModSwitch (ModAlt s) (ModAlt s') | s' == s = Nothing
-conflictingModSwitch (ModCtrl s) (ModCtrl s') | s' == s = Nothing
-conflictingModSwitch (ModRAlt s) (ModRAlt s') | s' == s = Nothing
-conflictingModSwitch (ModShift s) (ModShift _) = Just (ModShift s)
-conflictingModSwitch (ModAlt s) (ModAlt _) = Just (ModAlt s)
-conflictingModSwitch (ModCtrl s) (ModCtrl _) = Just (ModCtrl s)
-conflictingModSwitch (ModRAlt s) (ModRAlt _) = Just (ModRAlt s)
-conflictingModSwitch _ _ = Nothing
--- conflictingModSwitch _  (ModRAlt s) = Just (ModRAlt s)
 
   -- where
   --   notInNew = mods
@@ -456,13 +439,6 @@ conflictingModSwitch _ _ = Nothing
 --   applyMods <$> mods curr
 
 
-modDeleteDuplicates c = foldl
-                (\b a ->
-                  if any (eqModAbstract a) b
-                  then b
-                  else (b ++ [a]))
-                []
-                c
 
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
@@ -485,10 +461,7 @@ applyMods (ModRAlt p) = KeyEvent p KeyRightAlt
 revSwitch Press = Release
 revSwitch Release = Press
 
-getSwitch (ModShift p)  = p
-getSwitch (ModAlt p) = p
-getSwitch (ModCtrl p) = p
-getSwitch (ModRAlt p) = p
+getSwitch m = mapMod id m
 
 mapMod f (ModShift p)  = ModShift (f p)
 mapMod f (ModAlt p) = ModAlt (f p)
@@ -608,6 +581,14 @@ keyCommandTap k k' mod =
     []
     mod
 
+keyCommandMultiTap k k' mod =
+  MyKeyCommand $ KeyCommand
+    k
+    [(KeyEvent Press k), (KeyEvent Release k), (KeyEvent Press k), (KeyEvent Release k)]
+    []
+    mod
+
+
 keyMod k mod =
   MyModifier $ Modifier k mod
 
@@ -643,9 +624,19 @@ altTranslationLayer k@KeyEnter = Just $ list $ keyCommand k KeyEqual [(ModAlt Re
 -- If you ever have any problems with the changed xcompose binds, try using the default ones by simply adding to your activation a tap. So that the first keyCommand taps the key, and the second holds.
 -- https://www.x.org/releases/current/doc/libX11/i18n/compose/en_US.UTF-8.html
 -- å == oa
-altTranslationLayer k@KeyP = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModShift Release), (ModRAlt Press)]), (keyCommand k KeyA [(ModAlt Release), (ModRAlt Press)])]
-altTranslationLayer k@KeyComma = Just $ [(keyCommandTap k KeyA [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
-altTranslationLayer k@KeyDot = Just $ [(keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press)]), (keyCommand k KeyApostrophe [(ModAlt Release), (ModShift Press), (ModRAlt Press)])]
+altTranslationLayer k@KeyP = Just $ [
+  (keyCommandTap k KeyO [(ModAlt Release), (ModRAlt Press), (ModShift Release)]),
+  (keyCommand    k KeyA [(ModAlt Release), (ModRAlt Press)])
+  ]
+
+altTranslationLayer k@KeyComma = Just $ [
+  (keyCommandTap k KeyA       [(ModAlt Release), (ModRAlt Press)]),
+  (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
+  ]
+altTranslationLayer k@KeyDot = Just $ [
+  (keyCommandTap k KeyO       [(ModAlt Release), (ModRAlt Press)]),
+  (keyCommand k KeyApostrophe [(ModAlt Release), (ModRAlt Press), (ModShift Press)])
+  ]
 
 altTranslationLayer _ = Nothing
 
