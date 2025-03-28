@@ -120,12 +120,12 @@ updateKeymap l list (KeyEvent s k) =
         fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
                         -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-                          
+
                         -- We are going in reverse.
-                        then (a : released, b, 
+                        then (a : released, b,
                           -- Since this is the oldest key, run its actions first
                           -- First release key
-                          ++ (fromMaybe [] (maybeGetRelease a'))
+                          (fromMaybe [] (maybeGetRelease a'))
                           -- Then release modifiers
                           ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
                           ++ evs
@@ -169,7 +169,7 @@ updateKeymap l list (KeyEvent s k) =
         (new : old,
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
-          (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this. 
+          (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this.
           -- Then press the key, if it's a key
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
           -- This is going from the oldest of the new keys to press first
