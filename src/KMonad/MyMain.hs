@@ -338,13 +338,6 @@ mergeMods major minor =
                     []
                     c
 
--- []
--- [M Press]
-
-
--- []
--- [M Press]
-
 -- Finds and removes orphaned mods
 -- Apply only the keys in targetMods that don't exist EXACTLYL in oldMods
 fromTargetGivenContext :: [MyModifiersRequested] -> [MyModifiersRequested] -> [KeyEvent]
@@ -361,7 +354,7 @@ fromTargetGivenContext targetMods oldMods =
     -- Handles presses of new keys
     -- [M Press]
     -- []
-    ++ (applyMods <$> newKeys)
+    ++ (applyMods <$> (filter onlyIfPress newKeys))
     -- ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
       newKeys = modNotIn targetMods oldMods
@@ -383,6 +376,8 @@ fromTargetGivenContext targetMods oldMods =
       --                   else b)
       --                 []
       --                 c
+
+onlyIfPress a = mapModSwitch ((==) Press) a
 
 disableMod (ModShift Press) = Just (ModShift Release)
 disableMod (ModAlt Press) = Just (ModAlt Release)
@@ -461,12 +456,18 @@ applyMods (ModRAlt p) = KeyEvent p KeyRightAlt
 revSwitch Press = Release
 revSwitch Release = Press
 
-getSwitch m = mapMod id m
+getSwitch :: MyModifiersRequested -> Switch
+getSwitch m = mapModSwitch id m
 
 mapMod f (ModShift p)  = ModShift (f p)
 mapMod f (ModAlt p) = ModAlt (f p)
 mapMod f (ModCtrl p) = ModCtrl (f p)
 mapMod f (ModRAlt p) = ModRAlt (f p)
+
+mapModSwitch f (ModShift p) = (f p)
+mapModSwitch f (ModAlt p) = (f p)
+mapModSwitch f (ModCtrl p) = (f p)
+mapModSwitch f (ModRAlt p) = (f p)
 
 data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
   deriving (Eq, Show)
