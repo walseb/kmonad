@@ -116,7 +116,7 @@ updateKeymap l list (KeyEvent s k) =
       (noCurrent, effects)
 
       where
-        (current, noCurrent) = mapSplit (\(a, _) -> a /= kOrig) list
+        (current, noCurrent) = mapSplit (\(a, _) -> a == kOrig) list
         effects = concat $ (\a@(k', a') ->
                                   -- Since this is the oldest key, run its actions first
                                   -- First release key
