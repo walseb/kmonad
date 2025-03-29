@@ -239,11 +239,11 @@ modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
-  Tr.trace ("Mod target: " ++ (show (mergeMods mods oldGlobalMods))) $
+  Tr.trace ("\nMod target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod source: " ++ show (mergeMods mods' oldGlobalMods) ++ "Mod tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods))) ++ "\n") $
     fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
 
 modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
-  Tr.trace ("Mod target: " ++ (show (mergeMods mods oldGlobalMods))) $
+  Tr.trace ("\nMod target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod source: " ++ (show oldGlobalMods) ++ "Mod tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods)) ++ "\n") $
     fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
