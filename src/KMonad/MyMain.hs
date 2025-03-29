@@ -157,7 +157,7 @@ updateKeymap l list (KeyEvent s k) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new@(_, new') (old, cmd) ->
         (new : old,
-          Tr.trace ("This was last key: " ++ (show (headSafe old)) ++ "\nKey pressed: " ++ (show (concat (maybeToList (activation <$> (removeMod new'))))))
+          Tr.trace ("This was last key: " ++ (show (headSafe old)) ++ "\nKey pressed: " ++ (show new'))
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
           (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old))) -- The issue stems from this.
@@ -239,11 +239,11 @@ modifierSet _ oldGlobalMods (Press, (MyModifier (Modifier _ mods))) _ =
   fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) (Just (MyKeyCommand (KeyCommand _ _ _ mods'))) =
-  Tr.trace ("\nMod key target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod key source: " ++ show (mergeMods mods' oldGlobalMods) ++ "\nMod key tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods))) ++ "\n") $
+  -- Tr.trace ("\nMod key target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod key source: " ++ show (mergeMods mods' oldGlobalMods) ++ "\nMod key tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods))) ++ "\n") $
     fromTargetGivenContext (mergeMods mods oldGlobalMods) (mergeMods mods' oldGlobalMods)
 
 modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
-  Tr.trace ("\nMod gen target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod gen source: " ++ (show oldGlobalMods) ++ "Mod gen tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods)) ++ "\n") $
+  -- Tr.trace ("\nMod gen target: " ++ (show (mergeMods mods oldGlobalMods)) ++ "\nMod gen source: " ++ (show oldGlobalMods) ++ "Mod gen tally: " ++ (show (fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods)) ++ "\n") $
     fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
