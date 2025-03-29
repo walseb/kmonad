@@ -157,6 +157,7 @@ updateKeymap l list (KeyEvent s k) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new@(_, new') (old, cmd) ->
         (new : old,
+          Tr.trace ("Mods pressed: " ++ (show (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old)))))
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
           (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old))) -- The issue stems from this.
@@ -170,7 +171,7 @@ updateKeymap l list (KeyEvent s k) =
         where
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
-          -- newModifiers = listOnlyMods newEntries
+
           listOnlyMods l = catMaybes $ removeKeys <$> l
             where
               removeKeys (_, (MyModifier a)) = Just a
@@ -273,44 +274,6 @@ rootToKey (MyKeyCommand a) = Just a
 rootToKey (MyModifier _) = Nothing
 
 
--- modifierSet _ (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
---   applyMods <$> mods
-
--- releaseOverlayState globalMods = System.IO.Unsafe.unsafePerformIO $ do
---   ov <- setOverlayModState []
---   pure $ disableMod
---     -- If duplicate in the global mods, don't disable it
---     <$> filter (\a -> elem a globalMods) ov
--- {-# NOINLINE releaseOverlayState #-}
-
--- setOverlayModState a =
---   swapMVar overlayModState a
-
--- modifierSet _ (Release, (MyKeyCommand (KeyCommand _ _ _ mods))) =
---   applyMods <$> mods
-
--- If the new key is the same as the old key, we can't actually say anything. One key might have triggered multiple of these
--- modifierSet newGlobalMods (Just (k, _)) (Just (k', _)) | k == k' =
---   []
-
--- If new key is a key, and the last key was none, simply apply the new key
--- If last key was nothing, then we know that the new mods is an empty list
--- modifierSet [] (Just (k, (MyKeyCommand (KeyCommand _ _ _ mods)))) Nothing =
---   applyMods <$> mods
-
--- -- modifierSet newGlobalMods Nothing (Just (k', (KeyCommand _ _ _ mods))) =
--- --   undefined
--- --e
--- -- If new key is a key, and last key was a modifier, we only need to apply the difference
--- modifierSet _ (Just (_, (MyKeyCommand (KeyCommand _ _ _ mods)))) (Just (_, (MyModifier (Modifier _ _)))) =
---   applyMods <$> mods
-
--- modifierSet globalMods (Just (_, (MyModifier (Modifier _ mods)))) (Just (_, (MyKeyCommand (KeyCommand _ _ _ mods')))) =
---   applyMods <$> mods
---   ++ (fromTargetGivenContext globalMods mods mods')
-
--- modifierSet newGlobalMods newTop oldTop =
---   undefined
 
 mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersRequested]
 mergeMods major minor =
@@ -375,63 +338,11 @@ disableMod (ModAlt Release) = Nothing
 disableMod (ModCtrl Release) = Nothing
 disableMod (ModRAlt Release) = Nothing
 
--- isSwitchConflicting k k' = k /= k'
-
-
-  -- where
-  --   notInNew = mods
--- modifierSet c (Press, curr) =
---   -- Apply the new mods that are required
---   applyMods <$> unique
---   -- (concat (deleteRequirement <$> unique))
---   --   -- If the key request isn't unique, then apply the
---   --   ++ (applyMods <$> nonUnique)
-
---   where
---     -- cMod = concat $ mods <$> c
---     -- Modifiers not found anywhere in the context
---     unique = filter (\a -> not (any (eqModAbstract a) c)) (mods curr)
-
---     -- -- Modifiers found in the the context already
---     -- nonUnique = filter (\a -> any (eqModAbstract a) (mods curr)) cMod
-
---     -- Modifiers that are outdated in the context
---     outdated = filter (\a -> not (any ((==) a) cMod)) (mods curr)
-
--- modifierSet c (Release, curr) =
---   -- If the key request is unique, just release it
---   (concat (deleteRequirement <$> unique))
---     -- If the key request isn't unique, then apply the
---     ++ (applyMods <$> nonUnique)
---   where
---     cMod = concat $ mods <$> c
---     unique = filter (\a -> not (any (eqModAbstract a) cMod)) (mods curr)
-
---     nonUnique = filter (\a -> any (eqModAbstract a) (mods curr)) cMod
-
---     deleteRequirement (ModShift Press) = [KeyEvent Release KeyLeftShift]
---     deleteRequirement (ModAlt Press) = [KeyEvent Release KeyLeftAlt]
---     deleteRequirement (ModCtrl Press) = [KeyEvent Release KeyLeftCtrl]
---     deleteRequirement (ModRAlt Press) = [KeyEvent Release KeyRightAlt]
---     deleteRequirement _ = []
-
-    -- nonUnique = modDeleteDuplicates $ filter (not . (`elem` cMod)) (mods curr)
-
--- modifierSet _ (Press, curr) =
---   applyMods <$> mods curr
-
-
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
 eqModAbstract (ModCtrl _) (ModCtrl _) = True
 eqModAbstract (ModRAlt _) (ModRAlt _) = True
 eqModAbstract _ _ = False
-
--- modIsPressed (ModShift _) = True
--- modIsPressed (ModAlt _) = True
--- modIsPressed (ModCtrl _) = True
--- modIsPressed (ModRAlt _) = True
--- modIsPressed _ _ = False
 
 applyMods (ModShift p) = KeyEvent p KeyLeftShift
 applyMods (ModAlt p) = KeyEvent p KeyLeftAlt
