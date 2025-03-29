@@ -127,7 +127,7 @@ updateKeymap l list (KeyEvent s k) =
                           -- First release key
                           (fromMaybe [] (maybeGetRelease a'))
                           -- Then release modifiers
-                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ modifierSet (snd <$> b) oldModState (Release, snd a) Nothing
                           ++ evs
                           )
                         -- Put back if no match
@@ -169,7 +169,7 @@ updateKeymap l list (KeyEvent s k) =
         (new : old,
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
-          (modifierSet (snd <$> list) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this.
+          (modifierSet (snd <$> old) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this.
           -- Then press the key, if it's a key
           ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
           -- This is going from the oldest of the new keys to press first
