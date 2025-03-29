@@ -157,7 +157,7 @@ updateKeymap l list (KeyEvent s k) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       foldr (\new@(_, new') (old, cmd) ->
         (new : old,
-          Tr.trace ("Mods pressed: " ++ (show (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old)))))
+          Tr.trace ("Mods pressed: " ++ (show (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old)))) ++ "\nKey pressed: " ++ (show (concat (maybeToList (activation <$> (removeMod new'))))))
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
           (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old))) -- The issue stems from this.
