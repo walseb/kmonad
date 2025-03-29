@@ -127,7 +127,7 @@ updateKeymap l list (KeyEvent s k) =
                           -- First release key
                           (fromMaybe [] (maybeGetRelease a'))
                           -- Then release modifiers
-                          ++ modifierSet (snd <$> b) oldModState (Release, snd a) Nothing
+                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
                           ++ evs
                           )
                         -- Put back if no match
