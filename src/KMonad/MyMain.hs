@@ -107,15 +107,27 @@ updateKeymap l list (KeyEvent s k) =
     -- We need to release the original key because
     update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
-      let (keysReleased, newState, ev) =
-            foldr
-              fold
-              ([], [], [])
-              list
-      in (newState, ev)
+      -- let (keysReleased, newState, ev) =
+      --       foldr
+      --         fold
+      --         ([], [], [])
+      --         list
+      -- in (newState, ev)
+      (noCurrent, effects)
 
       where
-        oldModState = concat $ modifier <$> (listOnlyMods list)
+        (current, noCurrent) = mapSplit (\(a, _) -> a /= kOrig) list
+        effects = concat $ (\a@(k', a') ->
+                                  -- Since this is the oldest key, run its actions first
+                                  -- First release key
+                                  (fromMaybe [] (maybeGetRelease a'))
+                                  -- Then release modifiers
+                                  ++ modifierSet (snd <$> noCurrent) oldModState (Release, snd a) Nothing)
+                           <$> current
+
+        oldModState = concat $ modifier <$> (listOnlyMods noCurrent)
+
+        mapSplit f as = foldr (\b (bs, bs') -> if f b then (b:bs, bs') else (bs, b:bs')) ([], []) as
 
         fold a@(k', a') (released, b, evs) =
                         if k' == kOrig
@@ -127,14 +139,14 @@ updateKeymap l list (KeyEvent s k) =
                           -- First release key
                           (fromMaybe [] (maybeGetRelease a'))
                           -- Then release modifiers
-                          ++ modifierSet (snd <$> list) oldModState (Release, snd a) Nothing
+                          ++ modifierSet (snd <$> noCurrent) oldModState (Release, snd a) Nothing
                           ++ evs
                           )
                         -- Put back if no match
                         else (released, (a : b), evs)
-          where
-            maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
-            maybeGetRelease _ = Nothing
+
+        maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
+        maybeGetRelease _ = Nothing
 
         -- listOnlyKeys = catMaybes $ removeMod <$> list
         --   where
@@ -165,13 +177,13 @@ updateKeymap l list (KeyEvent s k) =
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
-      foldr (\ new@(_, new') (old, cmd) ->
+      foldr (\new@(_, new') (old, cmd) ->
         (new : old,
           -- Since this is the oldest key, run its actions first
           -- First press the modifiers
-          (modifierSet (snd <$> old) oldModifiers (Press, (snd new)) (snd <$> (headSafe old))) -- The issue stems from this.
+          (modifierSet (snd <$> old) (concat (modifier <$> listOnlyMods old)) (Press, new') (snd <$> (headSafe old))) -- The issue stems from this.
           -- Then press the key, if it's a key
-          ++ (concat (maybeToList ((activation . snd) <$> (removeMod new))))
+          ++ (concat (maybeToList (activation <$> (removeMod new'))))
           -- This is going from the oldest of the new keys to press first
           ++ cmd
           ))
@@ -181,16 +193,13 @@ updateKeymap l list (KeyEvent s k) =
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
           -- newModifiers = listOnlyMods newEntries
-          oldModifiers = (concat (modifier <$> (listOnlyMods list)))
-
           listOnlyMods l = catMaybes $ removeKeys <$> l
             where
-              removeKeys (k, (MyModifier a)) = Just a
+              removeKeys (_, (MyModifier a)) = Just a
               removeKeys (_, (MyKeyCommand _)) = Nothing
 
-          listOnlyKeys l = catMaybes $ removeMod <$> l
-          removeMod (k, (MyKeyCommand a)) = Just (k, a)
-          removeMod (_, (MyModifier _)) = Nothing
+          removeMod (MyKeyCommand a) = Just a
+          removeMod (MyModifier _) = Nothing
 
 keyMap :: MVar [(RootKeycode, RootInput)]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
@@ -434,13 +443,11 @@ disableMod (ModRAlt Release) = Nothing
 --   applyMods <$> mods curr
 
 
-
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
 eqModAbstract (ModCtrl _) (ModCtrl _) = True
 eqModAbstract (ModRAlt _) (ModRAlt _) = True
 eqModAbstract _ _ = False
-
 
 -- modIsPressed (ModShift _) = True
 -- modIsPressed (ModAlt _) = True
