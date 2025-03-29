@@ -107,12 +107,6 @@ updateKeymap l list (KeyEvent s k) =
     -- We need to release the original key because
     update :: [Layer] -> [(RootKeycode, RootInput)] -> (Keycode, KeyEvent) -> ([(RootKeycode, RootInput)], [KeyEvent])
     update _ list (kOrig, (KeyEvent Release _)) =
-      -- let (keysReleased, newState, ev) =
-      --       foldr
-      --         fold
-      --         ([], [], [])
-      --         list
-      -- in (newState, ev)
       (noCurrent, effects)
 
       where
@@ -128,22 +122,6 @@ updateKeymap l list (KeyEvent s k) =
         oldModState = concat $ modifier <$> (listOnlyMods noCurrent)
 
         mapSplit f as = foldr (\b (bs, bs') -> if f b then (b:bs, bs') else (bs, b:bs')) ([], []) as
-
-        fold a@(k', a') (released, b, evs) =
-                        if k' == kOrig
-                        -- If if updatedContext has the same head as list, this is an issue. Perhaps don't call at all in that case. Should this be figured out downstream?
-
-                        -- We are going in reverse.
-                        then (a : released, b,
-                          -- Since this is the oldest key, run its actions first
-                          -- First release key
-                          (fromMaybe [] (maybeGetRelease a'))
-                          -- Then release modifiers
-                          ++ modifierSet (snd <$> noCurrent) oldModState (Release, snd a) Nothing
-                          ++ evs
-                          )
-                        -- Put back if no match
-                        else (released, (a : b), evs)
 
         maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
         maybeGetRelease _ = Nothing
@@ -336,14 +314,14 @@ rootToKey (MyModifier _) = Nothing
 
 mergeMods :: [MyModifiersRequested] -> [MyModifiersRequested] -> [MyModifiersRequested]
 mergeMods major minor =
-  modDeleteDuplicates $ major ++ minor
+  modDeleteDuplicates $ minor ++ major
 
   where
-    modDeleteDuplicates c = foldl
-                    (\b a ->
+    modDeleteDuplicates c = foldr
+                    (\a b ->
                       if any (eqModAbstract a) b
                       then b
-                      else (b ++ [a]))
+                      else (a : b))
                     []
                     c
 
