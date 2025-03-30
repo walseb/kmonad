@@ -42,7 +42,7 @@ import System.Posix.Signals (Handler(Ignore), installHandler, sigCHLD)
 
 headSafe :: [a] -> Maybe a
 headSafe []     = Nothing
-headSafe (a:as) = Just a
+headSafe (a:_) = Just a
 
 initAppEnv :: HasLogFunc e => AppCfg -> ContT r (RIO e) AppEnv
 initAppEnv cfg = do
@@ -111,7 +111,7 @@ updateKeymap l list (KeyEvent s k) =
 
       where
         (current, noCurrent) = mapSplit (\(a, _) -> a == kOrig) list
-        effects = concat $ (\a@(k', a') ->
+        effects = concat $ (\a@(_, a') ->
                                   -- Since this is the oldest key, run its actions first
                                   -- First release key
                                   (fromMaybe [] (maybeGetRelease a'))
@@ -126,47 +126,25 @@ updateKeymap l list (KeyEvent s k) =
         maybeGetRelease (MyKeyCommand (KeyCommand _ _ rel _)) = Just rel
         maybeGetRelease _ = Nothing
 
-        -- listOnlyKeys = catMaybes $ removeMod <$> list
-        --   where
-        --     removeMod (_, (MyKeyCommand a)) = Just a
-        --     removeMod (_, (MyModifier _)) = Nothing
-
         listOnlyMods l = catMaybes $ removeKeys <$> l
           where
-            removeKeys (k, (MyModifier a)) = Just a
-            removeKeys (_, (MyKeyCommand a)) = Nothing
-
-        listOnlyKeys l = catMaybes $ removeMod <$> l
-          where
-            removeMod (k, (MyKeyCommand a)) = Just (k, a)
-            removeMod (_, (MyModifier _)) = Nothing
-
-        -- updatedContext :: [MyKeyCommand]
-        -- updatedContext = result <$> (filter (\(RootKeycode k _) -> ((k /= kOrig))) list)
-
-        -- foundKeys
-
-        -- construct entr@(MyKeyCommand k _ _ _) =
-        --   [((\(MyKeyCommand k' _ _ _) -> (not (k == k'))) <$> l,
-        --     release entr)]
-
-        -- modifiers c entr = modifierSet ((mods . result) <$> c) (Release, entr)
+            removeKeys (_, (MyModifier a)) = Just a
+            removeKeys (_, (MyKeyCommand _)) = Nothing
 
     -- Key press
     update layer list (kOrig, (KeyEvent Press k)) =
       -- Tr.trace ("New entry: " ++ (show newEntry)) $
       let (news, ev) =
+            -- This fold is very tricky. If you make any changes, try 'åäö' keys.
             foldr (\new@(_, new') (old, cmd) ->
               (new : old,
-                Tr.trace ("=============\nKey list length: " ++ (show (length newEntries)) ++ "\nKey list contents:" ++ (show newEntries) ++ "\nThis was last key: " ++ (show (headSafe (oldList' old))) ++ "\nKey pressed: " ++ (show new') ++ "\n=============")
+                -- Tr.trace ("=============\nKey list length: " ++ (show (length newEntries)) ++ "\nKey list contents:" ++ (show newEntries) ++ "\nThis was last key: " ++ (show (headSafe (oldList' old))) ++ "\nKey pressed: " ++ (show new') ++ "\n=============")
                 cmd
-                -- Since this is the oldest key, run its actions first
                 -- First press the modifiers
                 ++ (modifierSet (snd <$> (oldList' old)) (concat (modifier <$> listOnlyMods (oldList' old))) (Press, new') (snd <$> (headSafe (oldList' old)))) -- The issue stems from this.
 
                 -- Then press the key, if it's a key
                 ++ (concat (maybeToList (activation <$> (removeMod new'))))
-                -- This is going from the oldest of the new keys to press first
 
                 ))
               ([], [])
@@ -189,10 +167,6 @@ keyMap :: MVar [(RootKeycode, RootInput)]
 keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
--- TODO:
--- Alt needs to engage shift whenever relevant
--- Reduce excess keys being fired by having the modifier functions check what state the modifier key is in. This is an issue since the normal output function will also send out modifier key presses, which might mess this up?
-
 parseLayer :: ServerCmd -> Maybe Layer
 parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
@@ -204,8 +178,6 @@ parseLayer _ = Nothing
 -- If I recieve a release key command, I need to make sure it's sent to be released as output.
 fn :: KeyEvent -> IO [KeyEvent]
 fn ev = do
-  -- "recieved"
-
   -- () <- Tr.trace ("Injecting event: " ++ show ke) (pure ())
   cmd <- runServerPull
   m <- takeMVar keyMap
@@ -220,19 +192,7 @@ fn ev = do
   -- () <- Tr.trace ("Outputting events: " ++ show (mod ++ outKeys)) (pure ())
   pure $ outKeys
 
-  where
-    maybeToList = maybe [] (\a -> [a])
-    undoKey k = (KeyEvent Release k)
-    doKey k = (KeyEvent Press k)
-
 mapKey f (KeyEvent p k) = (KeyEvent p (f k))
-
--- Some other key might be pressed just before this is pressed
--- Only on press, activate everything it needs and deactivate everything it doesn't need. We know what do deactivate as it's shown in the
-
--- overlayModState :: MVar [MyModifiersRequested]
--- overlayModState = System.IO.Unsafe.unsafePerformIO $ newMVar []
--- {-# NOINLINE overlayModState #-}
 
 -- The non-global mods need to be thrown out as soon as a new key not requiring them is pressed
 modifierSet :: [RootInput] -> [MyModifiersRequested] -> (Switch, RootInput) -> Maybe RootInput -> [KeyEvent]
@@ -252,16 +212,11 @@ modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
     fromTargetGivenContext (mergeMods mods oldGlobalMods) oldGlobalMods
 
 -- TODO: Account for last key and resume its context
-modifierSet c oldGlobalMods (Release, key@(MyModifier (Modifier _ m))) _ =
+modifierSet c _ (Release, (MyModifier (Modifier _ m))) _ =
   -- If a mod is released, we only need to change the modifiers being held if the mod released isn't required anywhere in the context.
   -- If it is required for any reason anywhere in the (key, not mod) context, then simply do nothing. Those other keys will release the mod eventually
   applyMods <$> isFoundAmongContext
   where
-    -- Remove the modifier from oldGlobalMods
-    globalModsWithoutReleasedMod = filter (\a -> (not (elem a m))) oldGlobalMods
-    toList (Just a) = [a]
-    toList Nothing = []
-
     isFoundAmongContext = if isJust (find (\a -> elem a m) (concat (mods <$> (findRootKey c))))
       then []
       else catMaybes (disableMod <$> m)
@@ -325,14 +280,6 @@ fromTargetGivenContext targetMods oldMods =
       conflictingModSwitch _ _ = Nothing
 
       modNotIn c source = filter (\a -> not (any (eqModAbstract a) source)) c
-
-      -- modDeleteAbsNonDuplicatesFrom c source = foldr
-      --                 (\a b ->
-      --                   if any (eqModAbstract a) source
-      --                   then (a : b)
-      --                   else b)
-      --                 []
-      --                 c
 
 onlyIfPress a = mapModSwitch ((==) Press) a
 
@@ -484,14 +431,6 @@ keyCommandTap k k' mod =
     [(KeyEvent Press k'), (KeyEvent Release k')]
     []
     mod
-
-keyCommandMultiTap k k' mod =
-  MyKeyCommand $ KeyCommand
-    k
-    [(KeyEvent Press k), (KeyEvent Release k), (KeyEvent Press k), (KeyEvent Release k)]
-    []
-    mod
-
 
 keyMod k mod =
   MyModifier $ Modifier k mod
