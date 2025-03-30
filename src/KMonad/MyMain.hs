@@ -167,7 +167,7 @@ updateKeymap l list (KeyEvent s k) =
           ++ cmd
           ))
         (list, [])
-        newEntries
+        (reverse newEntries)
         where
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
