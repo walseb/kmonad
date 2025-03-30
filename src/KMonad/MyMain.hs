@@ -159,13 +159,14 @@ updateKeymap l list (KeyEvent s k) =
             foldr (\new@(_, new') (old, cmd) ->
               (new : old,
                 Tr.trace ("=============\nKey list length: " ++ (show (length newEntries)) ++ "\nKey list contents:" ++ (show newEntries) ++ "\nThis was last key: " ++ (show (headSafe (oldList' old))) ++ "\nKey pressed: " ++ (show new') ++ "\n=============")
-                -- Since this is the oldest key, run its actions first
-                -- First press the modifiers
-                (modifierSet (snd <$> (oldList' old)) (concat (modifier <$> listOnlyMods (oldList' old))) (Press, new') (snd <$> (headSafe (oldList' old)))) -- The issue stems from this.
+                cmd
                 -- Then press the key, if it's a key
                 ++ (concat (maybeToList (activation <$> (removeMod new'))))
                 -- This is going from the oldest of the new keys to press first
-                ++ cmd
+
+                -- Since this is the oldest key, run its actions first
+                -- First press the modifiers
+                ++ (modifierSet (snd <$> (oldList' old)) (concat (modifier <$> listOnlyMods (oldList' old))) (Press, new') (snd <$> (headSafe (oldList' old)))) -- The issue stems from this.
                 ))
               ([], [])
               (reverse newEntries)
