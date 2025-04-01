@@ -32,10 +32,11 @@ import Data.List
 import Data.Maybe (maybeToList)
 
 
+
 -- FIXME: This should live somewhere else
 
 #ifdef linux_HOST_OS
-import System.Posix.Signals (Handler(Ignore), installHandler, sigCHLD)
+import System.Posix.Signals (Handler(Ignore, Catch), installHandler, sigCHLD)
 
 #endif
 
@@ -151,7 +152,7 @@ updateKeymap l list (KeyEvent s k) =
               (reverse newEntries)
         in ((reverse news) ++ list, ev)
         where
-          oldList' n = n ++ list 
+          oldList' n = n ++ list
           newEntries :: [(RootKeycode, RootInput)]
           newEntries = ((,) kOrig) <$> (translationLayer currHostname layer list (concat (modifier <$> (listOnlyMods list))) kOrig k)
 
@@ -658,6 +659,11 @@ pull' s = awaitKey s >>=
 -- Get the invocation from the command-line, then do something with it.
 main :: IO ()
 main = getCmd >>= runCmd
+
+handleSig =
+  installHandler keyboardSignal (Catch $ putStrLn "Press Ctrl-C again to quit kernel.")
+    Nothing
+
 
 -- | Execute the provided 'Cmd'
 --
