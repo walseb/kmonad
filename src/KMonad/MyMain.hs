@@ -673,7 +673,7 @@ instance Exception MyException
 handleSig id =
   Sig.installHandler
     Sig.sigTERM
-    (Sig.Catch $ Tr.trace "Exiting" (pure ()) >> Control.Concurrent.throwTo id (ExitFailure 1) >> pure (error "Exit"))
+    (Sig.Catch $ Tr.trace "Exiting" (pure ()) >> Control.Concurrent.throwTo id (ExitFailure 1))
     Nothing
 
 -- | Execute the provided 'Cmd'
