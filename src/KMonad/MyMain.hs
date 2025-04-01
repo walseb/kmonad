@@ -12,6 +12,7 @@ import KMonad.Model
 
 import System.Environment
 
+import GHC.IO.Exception (ExitCode (ExitFailure))
 import KMonad.Keyboard.Keycode
 import KMonad.Keyboard.Types
 import KMonad.Keyboard.IO
@@ -32,11 +33,14 @@ import Data.List
 import Data.Maybe (maybeToList)
 
 
+import qualified Control.Concurrent
+import qualified Control.Exception
+
 
 -- FIXME: This should live somewhere else
 
 #ifdef linux_HOST_OS
-import System.Posix.Signals (Handler(Ignore, Catch), installHandler, sigCHLD)
+import qualified System.Posix.Signals as Sig
 
 #endif
 
@@ -57,8 +61,8 @@ initAppEnv cfg = do
   snk <- using $ cfg^.keySinkDev
   src <- using $ cfg^.keySourceDev
 
-  launch_ "emitter_proc_rpc" $ do
-    liftIO $ launchServer serverMVar
+  id <- liftIO $ Control.Concurrent.forkIO (launchServer serverMVar)
+  _ <- liftIO $ handleSig id
 
   -- emit e = view keySink >>= flip emitKey e
   pure $ AppEnv
@@ -80,10 +84,10 @@ initAppEnv cfg = do
 -- | Run KMonad using the provided configuration
 startApp :: HasLogFunc e => AppCfg -> RIO e ()
 startApp c = do
-#ifdef linux_HOST_OS
-  -- Ignore SIGCHLD to avoid zombie processes.
-  liftIO . void $ installHandler sigCHLD Ignore Nothing
-#endif
+-- #ifdef linux_HOST_OS
+--   -- Ignore SIGCHLD to avoid zombie processes.
+--   liftIO . void $ Sig.installHandler Sig.sigCHLD Sig.Ignore Nothing
+-- #endif
   runContT (initAppEnv c) (`runRIO` loop)
 
 loop :: RIO AppEnv ()
@@ -660,10 +664,17 @@ pull' s = awaitKey s >>=
 main :: IO ()
 main = getCmd >>= runCmd
 
-handleSig =
-  installHandler keyboardSignal (Catch $ putStrLn "Press Ctrl-C again to quit kernel.")
-    Nothing
+data MyException = MyException
+   deriving (Show, Typeable)
 
+instance Exception MyException
+
+-- handleSig :: (Exception e) => ThreadId -> (IO Sig.Handler)
+handleSig id =
+  Sig.installHandler
+    Sig.sigSTOP
+    (Sig.Catch $ Control.Concurrent.throwTo id (ExitFailure 1) >> pure (error "Exit"))
+    Nothing
 
 -- | Execute the provided 'Cmd'
 --
