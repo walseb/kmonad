@@ -10,6 +10,7 @@ import Data.Char (isSpace)
 import Data.Function ((&))
 import Data.Map.Strict (Map)
 import Network.Socket (Socket)
+import qualified Network.Socket as Socket'
 import Streamly.Data.Fold (Fold)
 import System.Random (randomIO)
 
@@ -122,12 +123,12 @@ handler uMvar sk = do
       & Stream.catRights
       & fmap (, sk)           -- Stream IO (String, Socket)
       & Stream.fold (demux uMvar)     -- IO () + Exceptions
-      -- & discard               -- IO ()
+      & discard               -- IO ()
 
     where
 
     word = Parser.wordBy (== '\n') Fold.toList
-    -- discard action = void action `catch` (\(_ :: SomeException) -> return ())
+    discard action = void action `catch` (\(_ :: SomeException) -> return ())
 
 ------------------------------------------------------------------------------
 -- Accept connecttions and handle connected sockets
@@ -135,7 +136,7 @@ handler uMvar sk = do
 
 server :: MVar [ServerCmd] -> IO ()
 server uMvar =
-      TCP.acceptLocal 9199                                -- Stream IO Socket
+      TCP.acceptOnAddrWith [(Socket'.ReuseAddr, 1)] (127,0,0,1) 9199                                -- Stream IO Socket
     & Stream.parMapM Prelude.id (Socket.forSocketM (handler uMvar))  -- Stream IO ()
     & Stream.fold Fold.drain                         -- IO ()
 
@@ -162,4 +163,4 @@ launchServer mvar = do
   -- Wait until port is avaliable
   KPrelude.threadDelay 2000000
   server mvar
-  Tr.trace "Server exiting" (pure ())
+  Tr.trace "Server exiting" pure ()
