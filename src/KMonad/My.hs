@@ -122,12 +122,12 @@ handler uMvar sk = do
       & Stream.catRights
       & fmap (, sk)           -- Stream IO (String, Socket)
       & Stream.fold (demux uMvar)     -- IO () + Exceptions
-      & discard               -- IO ()
+      -- & discard               -- IO ()
 
     where
 
     word = Parser.wordBy (== '\n') Fold.toList
-    discard action = void action `catch` (\(_ :: SomeException) -> return ())
+    -- discard action = void action `catch` (\(_ :: SomeException) -> return ())
 
 ------------------------------------------------------------------------------
 -- Accept connecttions and handle connected sockets
@@ -162,3 +162,4 @@ launchServer mvar = do
   -- Wait until port is avaliable
   KPrelude.threadDelay 2000000
   server mvar
+  Tr.trace "Server exiting" (pure ())
