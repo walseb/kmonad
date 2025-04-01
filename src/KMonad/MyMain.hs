@@ -672,7 +672,7 @@ instance Exception MyException
 -- handleSig :: (Exception e) => ThreadId -> (IO Sig.Handler)
 handleSig id =
   Sig.installHandler
-    Sig.sigSTOP
+    Sig.sigTERM
     (Sig.Catch $ Tr.trace "Exiting" (pure ()) >> Control.Concurrent.throwTo id (ExitFailure 1) >> pure (error "Exit"))
     Nothing
 

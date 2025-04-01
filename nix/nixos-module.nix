@@ -140,6 +140,7 @@ let
         serviceConfig.Restart = "always";
         serviceConfig.User = if in-initrd then null else "kmonad";
         serviceConfig.SupplementaryGroups = if in-initrd then null else groups;
+        serviceConfig.TimeoutStopSec = "5s";
         serviceConfig.Nice = -20;
       };
     };
