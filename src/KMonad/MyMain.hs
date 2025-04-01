@@ -62,7 +62,6 @@ initAppEnv cfg = do
   src <- using $ cfg^.keySourceDev
 
   id <- liftIO $ Control.Concurrent.forkIO (launchServer serverMVar)
-  -- _ <- liftIO $ handleSig id
 
   -- emit e = view keySink >>= flip emitKey e
   pure $ AppEnv
@@ -663,18 +662,6 @@ pull' s = awaitKey s >>=
 -- Get the invocation from the command-line, then do something with it.
 main :: IO ()
 main = getCmd >>= runCmd
-
-data MyException = MyException
-   deriving (Show, Typeable)
-
-instance Exception MyException
-
--- handleSig :: (Exception e) => ThreadId -> (IO Sig.Handler)
-handleSig id =
-  Sig.installHandler
-    Sig.sigTERM
-    (Sig.Catch $ Tr.trace ("Exiting thread: " ++ show id) (pure ()) >> Control.Concurrent.throwTo id (ExitFailure 1))
-    Nothing
 
 -- | Execute the provided 'Cmd'
 --

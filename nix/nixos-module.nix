@@ -143,7 +143,7 @@ let
         serviceConfig.Nice = -20;
         serviceConfig.ExecStop = "emacsclient -e '(my/kmonad-systemd-killed)'";
         # Make systemd wait for 3 seconds after ExecStop
-        serviceConfig.TimeoutStopSec = "3s";
+        # serviceConfig.TimeoutStopSec = "3s";
       };
     };
 

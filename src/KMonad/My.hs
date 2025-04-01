@@ -147,19 +147,17 @@ serverMVar = unsafePerformIO $ KPrelude.newEmptyMVar
 launchServer :: MVar [ServerCmd] -> IO ()
 launchServer mvar = do
   -- Wait until port is avaliable
-  KPrelude.threadDelay 1000000
+  -- KPrelude.threadDelay 1000000
   -- This only happens if the remote is still connected when this exits. It doesn't disconnect any clients forcibly. To fix this, we would simply have to install a signal handler in the socket handler.
   () <- KPrelude.catch
               (server mvar)
               (\e -> do let err = show (e :: KPrelude.IOException)
                         -- Only keep the thread alive if the error is that the port is taken
                         if (err == "Network.Socket.bind: resource busy (Address already in use)")
-                        then Tr.trace ("Kmonad server port occupied error: " ++ err) (pure ())
+                        -- Wait 2 seconds until port is avaliable again
+                        then KPrelude.threadDelay 2000000 >> (Tr.trace ("Kmonad server port occupied error: " ++ err) (pure ()))
                         else error ("KMonad server error: " ++ err))
-  -- Wait until port is avaliable again
-  KPrelude.threadDelay 2000000
   launchServer mvar
-
 
 -- launchServer :: MVar [ServerCmd] -> IO ()
 -- launchServer mvar = do
