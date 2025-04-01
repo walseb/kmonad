@@ -136,31 +136,34 @@ handler uMvar sk = do
 
 server :: MVar [ServerCmd] -> IO ()
 server uMvar =
-      TCP.acceptOnAddrWith [(Socket'.ReuseAddr, 1)] (127,0,0,1) 9199                                -- Stream IO Socket
-    & Stream.parMapM Prelude.id (Socket.forSocketM (handler uMvar))  -- Stream IO ()
-    & Stream.fold Fold.drain                         -- IO ()
+      TCP.acceptOnAddrWith [(Socket'.ReuseAddr, 1)] (127,0,0,1) 9199 -- Stream IO Socket
+    & Stream.parMapM Prelude.id (Socket.forSocketM (handler uMvar)) -- Stream IO ()
+    & Stream.fold Fold.drain -- IO ()
 
 serverMVar :: MVar [ServerCmd]
 serverMVar = unsafePerformIO $ KPrelude.newEmptyMVar
 {-# NOINLINE serverMVar #-}
 
--- launchServer :: MVar [ServerCmd] -> IO ()
--- launchServer mvar = do
---   () <- KPrelude.catch
---               (server mvar)
---               (\e -> do let err = show (e :: KPrelude.IOException)
---                         -- Only keep the thread alive if the error is that the port is taken
---                         if (err == "Network.Socket.bind: resource busy (Address already in use)")
---                         then Tr.trace ("Kmonad server port occupied error: " ++ err) (pure ())
---                         else error ("KMonad server error: " ++ err))
---   -- Wait until port is avaliable again
---   KPrelude.threadDelay 2000000
---   launchServer mvar
-
-
 launchServer :: MVar [ServerCmd] -> IO ()
 launchServer mvar = do
   -- Wait until port is avaliable
+  KPrelude.threadDelay 1000000
+  -- This only happens if the remote is still connected when this exits. It doesn't disconnect any clients forcibly. To fix this, we would simply have to install a signal handler in the socket handler.
+  () <- KPrelude.catch
+              (server mvar)
+              (\e -> do let err = show (e :: KPrelude.IOException)
+                        -- Only keep the thread alive if the error is that the port is taken
+                        if (err == "Network.Socket.bind: resource busy (Address already in use)")
+                        then Tr.trace ("Kmonad server port occupied error: " ++ err) (pure ())
+                        else error ("KMonad server error: " ++ err))
+  -- Wait until port is avaliable again
   KPrelude.threadDelay 2000000
-  server mvar
-  Tr.trace "Server exiting" pure ()
+  launchServer mvar
+
+
+-- launchServer :: MVar [ServerCmd] -> IO ()
+-- launchServer mvar = do
+--   -- Wait until port is avaliable
+--   KPrelude.threadDelay 2000000
+--   server mvar
+--   Tr.trace "Server exiting" pure ()

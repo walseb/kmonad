@@ -138,10 +138,12 @@ let
         script = lib.escapeShellArgs cmd;
         serviceConfig.Environment=[("HOSTNAME=${keyboard.hostname}")];
         serviceConfig.Restart = "always";
-        serviceConfig.User = if in-initrd then null else "kmonad";
+        serviceConfig.User = if in-initrd then null else "admin";
         serviceConfig.SupplementaryGroups = if in-initrd then null else groups;
-        serviceConfig.TimeoutStopSec = "5s";
         serviceConfig.Nice = -20;
+        serviceConfig.ExecStop = "emacsclient -e '(my/kmonad-systemd-killed)'";
+        # Make systemd wait for 3 seconds after ExecStop
+        serviceConfig.TimeoutStopSec = "3s";
       };
     };
 
