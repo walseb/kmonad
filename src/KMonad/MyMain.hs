@@ -540,6 +540,18 @@ hostnameTranslationLayer l "desktop" KeyLeftShift | any findLayerSteno l = KeyC
 hostnameTranslationLayer l "desktop" KeySpace | any findLayerSteno l = KeyV
 hostnameTranslationLayer l "desktop" KeyCapsLock | any findLayerSteno l = KeyN
 hostnameTranslationLayer l "desktop" KeyLeftAlt | any findLayerSteno l = KeyM
+
+hostnameTranslationLayer l "desktop" KeyY | any findLayerSteno l = KeyU
+hostnameTranslationLayer l "desktop" KeyU | any findLayerSteno l = KeyI
+hostnameTranslationLayer l "desktop" KeyI | any findLayerSteno l = KeyO
+hostnameTranslationLayer l "desktop" KeyO | any findLayerSteno l = KeyP
+hostnameTranslationLayer l "desktop" KeyP | any findLayerSteno l = KeyLeftBrace
+
+hostnameTranslationLayer l "desktop" KeyH | any findLayerSteno l = KeyJ
+hostnameTranslationLayer l "desktop" KeyJ | any findLayerSteno l = KeyK
+hostnameTranslationLayer l "desktop" KeyK | any findLayerSteno l = KeyL
+hostnameTranslationLayer l "desktop" KeyL | any findLayerSteno l = KeySemicolon
+hostnameTranslationLayer l "desktop" KeySemicolon | any findLayerSteno l = KeyApostrophe
 hostnameTranslationLayer _ _ a = a
 
 -- QWERTY -> Carpalx
