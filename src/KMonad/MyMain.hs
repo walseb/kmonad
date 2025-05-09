@@ -390,6 +390,8 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
+    -- For left hand ctrl on split keyboard
+    translationLayer' _layer _ _kOrig k@KeyLeftCtrl = Just $ list $ keyMod k [ModCtrl Press]
     translationLayer' _layer _ _kOrig k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Notice that this steno layer absorbs any key that's not the exit key
