@@ -219,7 +219,7 @@ modifierSet _ oldGlobalMods (Press, (MyKeyCommand (KeyCommand _ _ _ mods))) _ =
 modifierSet c _ (Release, (MyModifier (Modifier _ m))) _ =
   -- If a mod is released, we only need to change the modifiers being held if the mod released isn't required anywhere in the context.
   -- If it is required for any reason anywhere in the (key, not mod) context, then simply do nothing. Those other keys will release the mod eventually
-  applyMods <$> isFoundAmongContext
+  join $ applyMods <$> isFoundAmongContext
   where
     isFoundAmongContext = if isJust (find (\a -> elem a m) (concat (mods <$> (findRootKey c))))
       then []
@@ -261,16 +261,16 @@ fromTargetGivenContext targetMods oldMods =
   -- Handles changes in same symbols
   -- [M Release]
   -- [M Press]
-  (applyMods <$> (inBothAndConflicting targetMods oldMods))
+  (join (applyMods <$> (inBothAndConflicting targetMods oldMods)))
     -- Handles releases of removed keys
     -- []
     -- [M Press]
     -- Release keys that don't exist in targetMods
-    ++ (applyMods <$> (catMaybes (disableMod <$> orphanedKeys)))
+    ++ (join (applyMods <$> (catMaybes (disableMod <$> orphanedKeys))))
     -- Handles presses of new keys
     -- [M Press]
     -- []
-    ++ (applyMods <$> (filter onlyIfPress newKeys))
+    ++ (join (applyMods <$> (filter onlyIfPress newKeys)))
     -- ++ (applyMods <$> modDeleteAbsDuplicatesFrom targetMods oldMods)
     where
       newKeys = modNotIn targetMods oldMods
@@ -291,21 +291,26 @@ disableMod (ModShift Press) = Just (ModShift Release)
 disableMod (ModAlt Press) = Just (ModAlt Release)
 disableMod (ModCtrl Press) = Just (ModCtrl Release)
 disableMod (ModRAlt Press) = Just (ModRAlt Release)
+disableMod (ModFKeys Press) = Just (ModFKeys Release)
+
 disableMod (ModShift Release) = Nothing
 disableMod (ModAlt Release) = Nothing
 disableMod (ModCtrl Release) = Nothing
 disableMod (ModRAlt Release) = Nothing
+disableMod (ModFKeys Release) = Nothing
 
 eqModAbstract (ModShift _) (ModShift _) = True
 eqModAbstract (ModAlt _) (ModAlt _) = True
 eqModAbstract (ModCtrl _) (ModCtrl _) = True
 eqModAbstract (ModRAlt _) (ModRAlt _) = True
+eqModAbstract (ModFKeys _) (ModFKeys _) = True
 eqModAbstract _ _ = False
 
-applyMods (ModShift p) = KeyEvent p KeyLeftShift
-applyMods (ModAlt p) = KeyEvent p KeyLeftAlt
-applyMods (ModCtrl p) = KeyEvent p KeyLeftCtrl
-applyMods (ModRAlt p) = KeyEvent p KeyRightAlt
+applyMods (ModShift p) = [KeyEvent p KeyLeftShift]
+applyMods (ModAlt p) = [KeyEvent p KeyLeftAlt]
+applyMods (ModCtrl p) = [KeyEvent p KeyLeftCtrl]
+applyMods (ModRAlt p) = [KeyEvent p KeyRightAlt]
+applyMods (ModFKeys p) = []
 
 revSwitch Press = Release
 revSwitch Release = Press
@@ -317,13 +322,15 @@ mapMod f (ModShift p)  = ModShift (f p)
 mapMod f (ModAlt p) = ModAlt (f p)
 mapMod f (ModCtrl p) = ModCtrl (f p)
 mapMod f (ModRAlt p) = ModRAlt (f p)
+mapMod f (ModFKeys p) = ModFKeys (f p)
 
 mapModSwitch f (ModShift p) = (f p)
 mapModSwitch f (ModAlt p) = (f p)
 mapModSwitch f (ModCtrl p) = (f p)
 mapModSwitch f (ModRAlt p) = (f p)
+mapModSwitch f (ModFKeys p) = (f p)
 
-data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch
+data MyModifiersRequested = ModShift Switch | ModAlt Switch | ModCtrl Switch | ModRAlt Switch | ModFKeys Switch
   deriving (Eq, Show)
 
 type RootKeycode = Keycode
@@ -375,6 +382,9 @@ translationLayer hostname layer last mod kOrig k =
   fromMaybe [] $ translationLayer' layer mod kOrig k
 
   where
+    findModFKeys (ModFKeys Press) = True
+    findModFKeys _ = False
+
     findAlt (ModAlt Press) = True
     findAlt _ = False
     findCtrl (ModCtrl Press) = True
@@ -389,9 +399,11 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer _ _kOrig k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
+
     translationLayer' _layer _ _kOrig k@KeyCapsLock = Just $ list $ keyMod k [ModCtrl Press]
     -- For left hand ctrl on split keyboard
     translationLayer' _layer _ _kOrig k@KeyLeftCtrl = Just $ list $ keyMod k [ModCtrl Press]
+
     translationLayer' _layer _ _kOrig k@KeyRightCtrl = Just $ list $ keyMod k [ModCtrl Press]
 
     -- Notice that this steno layer absorbs any key that's not the exit key
@@ -406,6 +418,9 @@ translationLayer hostname layer last mod kOrig k =
 
     translationLayer' _layer mod _kOrig k | any findAlt mod && isJust (altTranslationLayer k) =
       altTranslationLayer k
+
+    translationLayer' _layer mod _kOrig k | any findModFKeys mod && isJust (modFKeysTranslationLayer k) =
+      modFKeysTranslationLayer k
 
     translationLayer' _layer mod _kOrig k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
@@ -442,6 +457,20 @@ keyMod k mod =
   MyModifier $ Modifier k mod
 
 list a = [a]
+
+modFKeysTranslationLayer :: Keycode -> Maybe [RootInput]
+modFKeysTranslationLayer k@KeyD = Just $ list $ keyCommand k KeyF1 []
+modFKeysTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyF2 []
+modFKeysTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyF3 []
+modFKeysTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyF4 []
+modFKeysTranslationLayer k@KeyR = Just $ list $ keyCommand k KeyF5 []
+modFKeysTranslationLayer k@KeyI = Just $ list $ keyCommand k KeyF6 []
+modFKeysTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyF7 []
+modFKeysTranslationLayer k@KeyE = Just $ list $ keyCommand k KeyF8 []
+modFKeysTranslationLayer k@KeyO = Just $ list $ keyCommand k KeyF9 []
+modFKeysTranslationLayer k@KeyH = Just $ list $ keyCommand k KeyF10 []
+modFKeysTranslationLayer k@KeyApostrophe = Just $ list $ keyCommand k KeyF11 []
+modFKeysTranslationLayer k@KeyRightBrace = Just $ list $ keyCommand k KeyF12 []
 
 altTranslationLayer :: Keycode -> Maybe [RootInput]
 altTranslationLayer k@KeyQ = Just $ list $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
