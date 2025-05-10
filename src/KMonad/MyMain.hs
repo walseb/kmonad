@@ -471,6 +471,7 @@ modFKeysTranslationLayer k@KeyO = Just $ list $ keyCommand k KeyF9 []
 modFKeysTranslationLayer k@KeyH = Just $ list $ keyCommand k KeyF10 []
 modFKeysTranslationLayer k@KeyApostrophe = Just $ list $ keyCommand k KeyF11 []
 modFKeysTranslationLayer k@KeyRightBrace = Just $ list $ keyCommand k KeyF12 []
+modFKeysTranslationLayer _ = Nothing
 
 altTranslationLayer :: Keycode -> Maybe [RootInput]
 altTranslationLayer k@KeyQ = Just $ list $ keyCommand k Key1 [(ModShift Press), (ModAlt Release)]
