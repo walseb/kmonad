@@ -522,6 +522,8 @@ altTranslationLayer _ = Nothing
 altCtrlTranslationLayer :: Keycode -> Maybe [RootInput]
 altCtrlTranslationLayer k@KeyF = Just $ list $ keyCommand k KeyBackspace [(ModAlt Release), (ModCtrl Press)]
 altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt Release), (ModCtrl Press)]
+-- Alt tab (for windows compatibility. Alt + Ctrl + T shouldn't do anything useful anyways. Shift + Ctrl + T is how you do tab back.)
+altCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModAlt Press), (ModCtrl Release)]
 altCtrlTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
