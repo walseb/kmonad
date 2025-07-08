@@ -554,6 +554,12 @@ fpsTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyW []
 fpsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyS []
 fpsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyA []
 fpsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyD []
+
+-- Rebind overlaps so that they can be used when binding
+fpsTranslationLayer k@KeyW = Just $ list $ keyCommand k KeyM []
+fpsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyT []
+fpsTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyS []
+fpsTranslationLayer k@KeyD = Just $ list $ keyCommand k KeyN []
 fpsTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
