@@ -553,7 +553,7 @@ fpsTranslationLayer :: Keycode -> Maybe [RootInput]
 fpsTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyW []
 fpsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyS []
 fpsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyA []
-fpsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyT []
+fpsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyD []
 fpsTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
