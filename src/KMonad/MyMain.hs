@@ -173,6 +173,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 
 parseLayer :: ServerCmd -> Maybe Layer
 parseLayer (ServerLayer "RTS") = Just $ RTS
+parseLayer (ServerLayer "FPS") = Just $ FPS
 parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
 parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
