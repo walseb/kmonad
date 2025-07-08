@@ -430,7 +430,7 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer mod _kOrig k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
 
-    translationLayer' layer _mod _kOrig k | (any findLayerRts layer) && isJust (rootTranslationLayer k) =
+    translationLayer' layer _mod _kOrig k | any findLayerRts layer && isJust (rtsTranslationLayer k) =
       rtsTranslationLayer k
 
     translationLayer' layer _mod _kOrig k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
