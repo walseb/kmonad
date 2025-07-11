@@ -172,6 +172,7 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
 parseLayer :: ServerCmd -> Maybe Layer
+parseLayer (ServerLayer "PlainModifiers") = Just $ PlainModifiers
 parseLayer (ServerLayer "RTS") = Just $ RTS
 parseLayer (ServerLayer "FPS") = Just $ FPS
 parseLayer (ServerLayer "emacs") = Just $ Emacs
@@ -363,6 +364,7 @@ data Layer =
   | EXWMFirefox
   | RTS
   | FPS
+  | PlainModifiers
   deriving (Eq, Show)
 
 currHostname :: String
@@ -406,6 +408,9 @@ translationLayer hostname layer last mod kOrig k =
     findLayerFps FPS = True
     findLayerFps _ = False
 
+    findLayerPlainModifiers PlainModifiers = True
+    findLayerPlainModifiers _ = False
+
     translationLayer' _layer _ _kOrig k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
@@ -426,7 +431,7 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer mod _kOrig k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
 
-    translationLayer' _layer mod _kOrig k | any findAlt mod && isJust (altTranslationLayer k) =
+    translationLayer' _layer mod _kOrig k | (not (any findLayerPlainModifiers layer)) && (any findAlt mod && isJust (altTranslationLayer k)) =
       altTranslationLayer k
 
     translationLayer' _layer mod _kOrig k | any findModFKeys mod && isJust (modFKeysTranslationLayer k) =
