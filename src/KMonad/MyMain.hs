@@ -569,6 +569,8 @@ ctrlTranslationLayer _ = Nothing
 hostnameTranslationLayer :: [Layer] -> String -> Keycode -> Keycode
 hostnameTranslationLayer _ "thinkpad-t480" KeyBackslash = KeyEnter
 hostnameTranslationLayer _ "thinkpad-t480" KeyEnter = KeyBackslash
+hostnameTranslationLayer _ "thinkpad-t480" KeyRightAlt = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" KeyPrint = BtnRight
 -- Steno on ergodox
 hostnameTranslationLayer l "desktop" KeyLeftShift | any findLayerSteno l = KeyC
 hostnameTranslationLayer l "desktop" KeySpace | any findLayerSteno l = KeyV
