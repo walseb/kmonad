@@ -172,6 +172,9 @@ keyMap = System.IO.Unsafe.unsafePerformIO $ newMVar []
 {-# NOINLINE keyMap #-}
 
 parseLayer :: ServerCmd -> Maybe Layer
+parseLayer (ServerLayer "PlainModifiers") = Just $ PlainModifiers
+parseLayer (ServerLayer "RTS") = Just $ RTS
+parseLayer (ServerLayer "FPS") = Just $ FPS
 parseLayer (ServerLayer "emacs") = Just $ Emacs
 parseLayer (ServerLayer "EXWM") = Just $ EXWM
 parseLayer (ServerLayer "EXWMFirefox") = Just $ EXWMFirefox
@@ -359,6 +362,9 @@ data Layer =
   | Raw
   | Steno
   | EXWMFirefox
+  | RTS
+  | FPS
+  | PlainModifiers
   deriving (Eq, Show)
 
 currHostname :: String
@@ -396,6 +402,15 @@ translationLayer hostname layer last mod kOrig k =
     findLayerEmacs Emacs = True
     findLayerEmacs _ = False
 
+    findLayerRts RTS = True
+    findLayerRts _ = False
+
+    findLayerFps FPS = True
+    findLayerFps _ = False
+
+    findLayerPlainModifiers PlainModifiers = True
+    findLayerPlainModifiers _ = False
+
     translationLayer' _layer _ _kOrig k@KeyLeftAlt = Just $ list $ keyMod k [ModAlt Press]
     translationLayer' _layer _ _kOrig k@KeyRightShift = Just $ list $ keyMod k [ModShift Press]
     translationLayer' _layer _ _kOrig k@KeyLeftShift = Just $ list $ keyMod k [ModShift Press]
@@ -416,7 +431,7 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' _layer mod _kOrig k | any findCtrl mod && any findAlt mod && isJust (altCtrlTranslationLayer k) =
       altCtrlTranslationLayer k
 
-    translationLayer' _layer mod _kOrig k | any findAlt mod && isJust (altTranslationLayer k) =
+    translationLayer' _layer mod _kOrig k | (not (any findLayerPlainModifiers layer)) && (any findAlt mod && isJust (altTranslationLayer k)) =
       altTranslationLayer k
 
     translationLayer' _layer mod _kOrig k | any findModFKeys mod && isJust (modFKeysTranslationLayer k) =
@@ -424,6 +439,12 @@ translationLayer hostname layer last mod kOrig k =
 
     translationLayer' _layer mod _kOrig k | any findCtrl mod && isJust (ctrlTranslationLayer k) =
       ctrlTranslationLayer k
+
+    translationLayer' layer _mod _kOrig k | any findLayerRts layer && isJust (rtsTranslationLayer k) =
+      rtsTranslationLayer k
+
+    translationLayer' layer _mod _kOrig k | any findLayerFps layer && isJust (fpsTranslationLayer k) =
+      fpsTranslationLayer k
 
     translationLayer' layer _mod _kOrig k | (any findLayerEmacs layer || any findLayerEXWM layer) && isJust (rootTranslationLayer k) =
       rootTranslationLayer k
@@ -525,6 +546,26 @@ altCtrlTranslationLayer k@KeyL = Just $ list $ keyCommand k KeyDelete [(ModAlt R
 -- Alt tab (for windows compatibility. Alt + Ctrl + T shouldn't do anything useful anyways. Shift + Ctrl + T is how you do tab back.)
 altCtrlTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyTab [(ModAlt Press), (ModCtrl Release)]
 altCtrlTranslationLayer _ = Nothing
+
+rtsTranslationLayer :: Keycode -> Maybe [RootInput]
+rtsTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyUp []
+rtsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyDown []
+rtsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyLeft []
+rtsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyRight []
+rtsTranslationLayer _ = Nothing
+
+fpsTranslationLayer :: Keycode -> Maybe [RootInput]
+fpsTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyW []
+fpsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyS []
+fpsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyA []
+fpsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyD []
+
+-- Rebind overlaps so that they can be used when binding
+fpsTranslationLayer k@KeyW = Just $ list $ keyCommand k KeyM []
+fpsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyT []
+fpsTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyS []
+fpsTranslationLayer k@KeyD = Just $ list $ keyCommand k KeyN []
+fpsTranslationLayer _ = Nothing
 
 -- Key pressed without any modifier
 rootTranslationLayer :: Keycode -> Maybe [RootInput]
