@@ -622,6 +622,7 @@ hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
 -- Right side
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightAlt = BtnLeft
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
+hostnameTranslationLayer _ "thinkpad-t480" KeyPrint _ = BtnRight
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightCtrl = BtnRight
 
 -- Steno on ergodox
