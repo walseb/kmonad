@@ -617,13 +617,16 @@ hostnameTranslationLayer _ "thinkpad-t480" _ KeyEnter = KeyBackslash
 -- hostnameTranslationLayer _ "thinkpad-t480" _ KeyGrave = BtnLeft
 -- hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
 -- Left side
-hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnLeft
-hostnameTranslationLayer _ "thinkpad-t480" _ Key2 = BtnRight
+-- hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnLeft
+-- hostnameTranslationLayer _ "thinkpad-t480" _ Key2 = BtnRight
 -- Right side
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightAlt = BtnLeft
-hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
-hostnameTranslationLayer _ "thinkpad-t480" KeyPrint _ = BtnRight
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightCtrl = BtnRight
+-- hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
+-- hostnameTranslationLayer _ "thinkpad-t480" KeyPrint _ = BtnRight
+
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyLeftMeta = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyWakeUp = BtnRight
 
 -- Steno on ergodox
 hostnameTranslationLayer l "desktop" _ KeyLeftShift | any findLayerSteno l = KeyC
