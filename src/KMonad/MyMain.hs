@@ -104,8 +104,9 @@ loop = do
 
 updateKeymap :: [Layer] -> [(RootKeycode, RootInput)] -> KeyEvent -> ([(RootKeycode, RootInput)], [KeyEvent])
 updateKeymap l list (KeyEvent s k) =
-  let ke = KeyEvent s ((carpalxTranslationLayer l . hostnameTranslationLayer l currHostname) k)
-  in update l list (k, ke)
+  let (KeyEvent _ k') = KeyEvent s ((carpalxTranslationLayer l) k)
+  let ke' = KeyEvent s ((hostnameTranslationLayer l currHostname k) k')
+  in update l list (k, ke')
   where
     -- Key release
     -- We need to release the original key because
@@ -607,33 +608,36 @@ ctrlTranslationLayer k@KeyA = Just $ list $ keyCommand k KeyEnter [(ModCtrl Rele
 ctrlTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyA [(ModCtrl Press)]
 ctrlTranslationLayer _ = Nothing
 
-hostnameTranslationLayer :: [Layer] -> String -> Keycode -> Keycode
-hostnameTranslationLayer _ "thinkpad-t480" KeyBackslash = KeyEnter
-hostnameTranslationLayer _ "thinkpad-t480" KeyEnter = KeyBackslash
-hostnameTranslationLayer _ "thinkpad-t480" KeyRightAlt = BtnLeft
-hostnameTranslationLayer _ "thinkpad-t480" KeyPrint = BtnRight
+-- First keycode is the old key, without carpalx applied
+hostnameTranslationLayer :: [Layer] -> String -> Keycode -> Keycode -> Keycode
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyBackslash = KeyEnter
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyEnter = KeyBackslash
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightAlt = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightCtrl = BtnRight
+
 -- Steno on ergodox
-hostnameTranslationLayer l "desktop" KeyLeftShift | any findLayerSteno l = KeyC
-hostnameTranslationLayer l "desktop" KeySpace | any findLayerSteno l = KeyV
-hostnameTranslationLayer l "desktop" KeyCapsLock | any findLayerSteno l = KeyN
-hostnameTranslationLayer l "desktop" KeyLeftAlt | any findLayerSteno l = KeyM
+hostnameTranslationLayer l "desktop" _ KeyLeftShift | any findLayerSteno l = KeyC
+hostnameTranslationLayer l "desktop" _ KeySpace | any findLayerSteno l = KeyV
+hostnameTranslationLayer l "desktop" _ KeyCapsLock | any findLayerSteno l = KeyN
+hostnameTranslationLayer l "desktop" _ KeyLeftAlt | any findLayerSteno l = KeyM
 
 -- Move all buttons one step to the left. This is because Ergodox doesn't have the far right side of keys properly aligned as they are bound in Plover
-hostnameTranslationLayer l "desktop" KeyY | any findLayerSteno l = KeyU
-hostnameTranslationLayer l "desktop" KeyU | any findLayerSteno l = KeyI
-hostnameTranslationLayer l "desktop" KeyI | any findLayerSteno l = KeyO
-hostnameTranslationLayer l "desktop" KeyO | any findLayerSteno l = KeyP
-hostnameTranslationLayer l "desktop" KeyP | any findLayerSteno l = KeyLeftBrace
+hostnameTranslationLayer l "desktop" KeyY _ | any findLayerSteno l = KeyU
+hostnameTranslationLayer l "desktop" KeyU _ | any findLayerSteno l = KeyI
+hostnameTranslationLayer l "desktop" KeyI _ | any findLayerSteno l = KeyO
+hostnameTranslationLayer l "desktop" KeyO _ | any findLayerSteno l = KeyP
+hostnameTranslationLayer l "desktop" KeyP _ | any findLayerSteno l = KeyLeftBrace
 
-hostnameTranslationLayer l "desktop" KeyH | any findLayerSteno l = KeyJ
-hostnameTranslationLayer l "desktop" KeyJ | any findLayerSteno l = KeyK
-hostnameTranslationLayer l "desktop" KeyK | any findLayerSteno l = KeyL
-hostnameTranslationLayer l "desktop" KeyL | any findLayerSteno l = KeySemicolon
-hostnameTranslationLayer l "desktop" KeySemicolon | any findLayerSteno l = KeyApostrophe
+hostnameTranslationLayer l "desktop" KeyH _ | any findLayerSteno l = KeyJ
+hostnameTranslationLayer l "desktop" KeyJ _ | any findLayerSteno l = KeyK
+hostnameTranslationLayer l "desktop" KeyK _ | any findLayerSteno l = KeyL
+hostnameTranslationLayer l "desktop" KeyL _ | any findLayerSteno l = KeySemicolon
+hostnameTranslationLayer l "desktop" KeySemicolon _ | any findLayerSteno l = KeyApostrophe
 
 -- hostnameTranslationLayer l "desktop" KeyBackslash | any findLayerSteno l = KeyLeftBrace
 -- hostnameTranslationLayer l "desktop" KeyRightBrace | any findLayerSteno l = KeyApostrophe
-hostnameTranslationLayer _ _ a = a
+hostnameTranslationLayer _ _ _ a = a
 
 -- QWERTY -> Carpalx
 carpalxTranslationLayer :: [Layer] -> Keycode -> Keycode
