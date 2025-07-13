@@ -625,6 +625,7 @@ hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightCtrl = BtnRight
 -- hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
 -- hostnameTranslationLayer _ "thinkpad-t480" KeyPrint _ = BtnRight
 
+hostnameTranslationLayer _ "thinkpad-t480" KeyLeftCtrl _ = BtnLeft
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyWakeUp = BtnLeft
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyLeftMeta = BtnRight
 
