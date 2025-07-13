@@ -105,7 +105,7 @@ loop = do
 updateKeymap :: [Layer] -> [(RootKeycode, RootInput)] -> KeyEvent -> ([(RootKeycode, RootInput)], [KeyEvent])
 updateKeymap l list (KeyEvent s k) =
   let (KeyEvent _ k') = KeyEvent s ((carpalxTranslationLayer l) k)
-  let ke' = KeyEvent s ((hostnameTranslationLayer l currHostname k) k')
+      ke' = KeyEvent s ((hostnameTranslationLayer l currHostname k) k')
   in update l list (k, ke')
   where
     -- Key release
