@@ -617,8 +617,8 @@ hostnameTranslationLayer _ "thinkpad-t480" _ KeyEnter = KeyBackslash
 -- hostnameTranslationLayer _ "thinkpad-t480" _ KeyGrave = BtnLeft
 -- hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
 -- Left side
-hostnameTranslationLayer _ "thinkpad-t480" _ KeyGrave = BtnLeft
-hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
+hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" _ Key2 = BtnRight
 -- Right side
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightAlt = BtnLeft
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
