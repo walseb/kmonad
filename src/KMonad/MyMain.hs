@@ -614,8 +614,14 @@ hostnameTranslationLayer _ "thinkpad-t480" _ KeyBackslash = KeyEnter
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyEnter = KeyBackslash
 
 -- Mouse
+-- hostnameTranslationLayer _ "thinkpad-t480" _ KeyGrave = BtnLeft
+-- hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
+-- Left side
 hostnameTranslationLayer _ "thinkpad-t480" _ KeyGrave = BtnLeft
 hostnameTranslationLayer _ "thinkpad-t480" _ Key1 = BtnRight
+-- Right side
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightAlt = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
 
 -- Steno on ergodox
 hostnameTranslationLayer l "desktop" _ KeyLeftShift | any findLayerSteno l = KeyC
