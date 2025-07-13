@@ -625,8 +625,8 @@ hostnameTranslationLayer _ "thinkpad-t480" _ KeyRightCtrl = BtnRight
 -- hostnameTranslationLayer _ "thinkpad-t480" _ KeyPrint = BtnRight
 -- hostnameTranslationLayer _ "thinkpad-t480" KeyPrint _ = BtnRight
 
-hostnameTranslationLayer _ "thinkpad-t480" _ KeyLeftMeta = BtnLeft
-hostnameTranslationLayer _ "thinkpad-t480" _ KeyWakeUp = BtnRight
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyWakeUp = BtnLeft
+hostnameTranslationLayer _ "thinkpad-t480" _ KeyLeftMeta = BtnRight
 
 -- Steno on ergodox
 hostnameTranslationLayer l "desktop" _ KeyLeftShift | any findLayerSteno l = KeyC
