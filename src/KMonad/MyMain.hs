@@ -443,6 +443,9 @@ translationLayer hostname layer last mod kOrig k =
     translationLayer' layer _mod _kOrig k | any findLayerRts layer && isJust (rtsTranslationLayer k) =
       rtsTranslationLayer k
 
+    translationLayer' layer _mod _kOrig k | any findLayerEXWM layer && isJust (exwmTranslationLayer k) =
+      exwmTranslationLayer k
+
     translationLayer' layer _mod _kOrig k | any findLayerFps layer && isJust (fpsTranslationLayer k) =
       fpsTranslationLayer k
 
@@ -553,6 +556,11 @@ rtsTranslationLayer k@KeyT = Just $ list $ keyCommand k KeyDown []
 rtsTranslationLayer k@KeyS = Just $ list $ keyCommand k KeyLeft []
 rtsTranslationLayer k@KeyN = Just $ list $ keyCommand k KeyRight []
 rtsTranslationLayer _ = Nothing
+
+-- Needed for when games can't understand CTRL + A = RET
+exwmTranslationLayer :: Keycode -> Maybe [RootInput]
+exwmTranslationLayer k@KeyBackslash = Just $ list $ keyCommand k KeyEnter []
+exwmTranslationLayer _ = Nothing
 
 fpsTranslationLayer :: Keycode -> Maybe [RootInput]
 fpsTranslationLayer k@KeyM = Just $ list $ keyCommand k KeyW []
